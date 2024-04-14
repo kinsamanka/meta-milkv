@@ -1,0 +1,56 @@
+header:
+  version: 8
+machine: milkv-duo
+distro: nodistro
+target: core-image-minimal
+env:
+  HOME: "" # this enables access to the $HOME env variable 
+  DL_DIR: "${HOME}/oe/dl"
+  SSTATE_DIR: "${HOME}/oe/sstate"
+  BB_ENV_PASSTHROUGH_ADDITIONS: "DL_DIR SSTATE_DIR"
+repos:
+  oe-core:
+    url: "https://github.com/openembedded/openembedded-core"
+    refspec: "scarthgap"
+    layers:
+      meta:
+  bitbake:
+    url: "https://github.com/openembedded/bitbake"
+    refspec: "2.8"
+    layers:
+      conf: disabled
+  meta-riscv:
+    url: "https://github.com/riscv/meta-riscv"
+    refspec: c1c671a97025941f7ec4d98e586f357f126e9379
+  meta-milkv:
+    url: "https://github.com/kinsamanka/meta-milkv"
+    refspec: "master"
+bblayers_conf_header:
+  standard: |
+    POKY_BBLAYERS_CONF_VERSION = "7"
+    BBPATH = "${TOPDIR}"
+    BBFILES ?= ""
+local_conf_header:
+  standard: |
+    CONF_VERSION = "2"
+    SDKMACHINE = "x86_64"
+    USER_CLASSES = "buildstats"
+    PATCHRESOLVE = "noop"
+    DISTRO_VERSION = "1.0"
+  debug-tweaks: |
+    EXTRA_IMAGE_FEATURES ?= "debug-tweaks"
+  diskmon: |
+    BB_DISKMON_DIRS = "\
+        STOPTASKS,${TMPDIR},1G,100K \
+        STOPTASKS,${DL_DIR},1G,100K \
+        STOPTASKS,${SSTATE_DIR},1G,100K \
+        STOPTASKS,/tmp,100M,100K \
+        HALT,${TMPDIR},100M,1K \
+        HALT,${DL_DIR},100M,1K \
+        HALT,${SSTATE_DIR},100M,1K \
+        HALT,/tmp,10M,1K"
+  milkv-duo: |
+    INIT_MANAGER = "mdev-busybox"
+    VIRTUAL-RUNTIME_dev_manager = "busybox-mdev"
+    PREFERRED_PROVIDER_virtual/kernel = "linux-milkv-duo-dev"
+    CORE_IMAGE_EXTRA_INSTALL += " kernel-modules init-ifupdown"
