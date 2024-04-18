@@ -50,6 +50,7 @@ local_conf_header:
         HALT,${SSTATE_DIR},100M,1K \
         HALT,/tmp,10M,1K"
   milkv-duo: |
+    TCLIBC="musl"
     INIT_MANAGER = "mdev-busybox"
     VIRTUAL-RUNTIME_dev_manager = "busybox-mdev"
     PREFERRED_PROVIDER_virtual/kernel = "linux-milkv-duo-dev"
