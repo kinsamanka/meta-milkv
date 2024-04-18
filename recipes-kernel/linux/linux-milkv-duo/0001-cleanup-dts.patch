@@ -1,0 +1,231 @@
+From 5c2e9c3113318a1b243e552b71bc50d87aaf58d0 Mon Sep 17 00:00:00 2001
+From: GP Orcullo <kinsamanka@gmail.com>
+Date: Thu, 18 Apr 2024 12:59:42 +0000
+Subject: [PATCH] cleanup dts
+
+
+---
+ .../boot/dts/cvitek/cv1800b_milkv_duo_sd.dts  | 26 +++++++++++---
+ arch/riscv/boot/dts/cvitek/cv180x_base.dtsi   | 29 ---------------
+ .../boot/dts/cvitek/cv180x_base_riscv.dtsi    | 30 ++--------------
+ .../dts/cvitek/cv180x_default_memmap.dtsi     |  2 +-
+ arch/riscv/boot/dts/cvitek/cvi_board_memmap.h | 35 -------------------
+ 5 files changed, 24 insertions(+), 98 deletions(-)
+ delete mode 100644 arch/riscv/boot/dts/cvitek/cvi_board_memmap.h
+
+diff --git a/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts b/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts
+index 1f4715487..38c54fb92 100644
+--- a/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts
++++ b/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts
+@@ -1,4 +1,11 @@
+ /dts-v1/;
++
++#define CVIMMAP_FREERTOS_ADDR 0x83f40000	/* offset 63.25MiB */
++#define CVIMMAP_FREERTOS_SIZE 0xc0000		/* 768.0KiB */
++#define CVIMMAP_FREERTOS_RESERVED_ION_SIZE 0x0	/* 0.0KiB */
++#define CVIMMAP_ION_ADDR 0x83f40000		/* offset 63.25MiB */
++#define CVIMMAP_ION_SIZE 0x0			/* 0.0KiB */
++
+ #include "cv180x_base_riscv.dtsi"
+ #include "cv180x_asic_qfn.dtsi"
+ #include "cv180x_asic_sd.dtsi"
+@@ -21,11 +28,20 @@
+ };
+ 
+ &i2c1 {
+-       status = "okay";
+-       clock-frequency = <100000>;
++	status = "okay";
++	clock-frequency = <100000>;
+ };
+ 
+-/ {
+-
++/{
++	reserved-memory {
++		#size-cells = <0x1>;
++		#address-cells = <0x1>;
++		ranges;
++
++		opensbi {
++			compatible = "removed-dma-pool";
++			reg = <0x80000000 0x60000>;
++			no-map;
++		};
++	};
+ };
+-
+diff --git a/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi b/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
+index fcc07d2ff..a780ad5b7 100644
+--- a/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
++++ b/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
+@@ -240,12 +240,6 @@
+ 		clocks = <&clk CV180X_CLK_SPI>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+-#if 0
+-		dmas = <&dmac 2 1 1
+-			&dmac 3 1 1>;
+-		dma-names = "rx", "tx";
+-		capability = "txrx";
+-#endif
+ 	};
+ 
+ 	uart0: serial@04140000 {
+@@ -802,18 +796,6 @@
+ 		#thermal-sensor-cells = <1>;
+ 	};
+ 
+-#if 0
+-	cv182x_cooling:cv182x_cooling {
+-		clocks = <&clk CV180X_CLK_A53>, <&clk CV180X_CLK_TPU>;
+-		clock-names = "clk_a53", "clk_tpu_axi";
+-		dev-freqs = <1000000000 750000000>,
+-			<500000000 375000000>,
+-			<500000000 100000000>;
+-		compatible = "cvitek,cv182x-cooling";
+-		#cooling-cells = <2>;
+-	};
+-#endif
+-
+ 	thermal-zones {
+ 		soc_thermal_0: soc_thermal_0 {
+ 			polling-delay-passive = <1000>; /* milliseconds */
+@@ -842,13 +824,6 @@
+ 		};
+ 	};
+ 
+-#if 0
+-	cvipctrl: pinctrl@3001000 {
+-		compatible = "cvitek,pinctrl-cv182x";
+-		reg = <0 0x03001000 0 0x1000>;
+-	};
+-#endif
+-
+ 	cviaudio_core {
+ 		compatible = "cvitek,audio";
+ 	};
+@@ -856,11 +831,7 @@
+ 	audio_clock: audio_clock {
+ 		compatible = "fixed-clock";
+ 		#clock-cells = <0>;
+-#if 0
+-		clock-frequency = <12288000>;
+-#else
+ 		clock-frequency = <24576000>;
+-#endif
+ 		};
+ 
+ 
+diff --git a/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi b/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi
+index ca87a1a85..933d104f7 100644
+--- a/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi
++++ b/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi
+@@ -4,21 +4,6 @@
+ #include <dt-bindings/clock/cv180x-clock.h>
+ #include <dt-bindings/thermal/thermal.h>
+ #include <dt-bindings/dma/cv180x-dmamap.h>
+-#include "cvi_board_memmap.h"
+-
+-/*
+- * OpenSBI will add below subnode into reserved memory automatically
+- * mmode_resv0@80000000 {
+- *     reg = <0x00 0x80000000 0x00 0x20000>;
+- *     phandle = <0x0d>;
+- * };
+- * Skip below to avoid lmb region reseved conflict in uboot.
+- *
+- */
+-#ifndef __UBOOT__
+-/memreserve/	CVIMMAP_MONITOR_ADDR CVIMMAP_OPENSBI_SIZE; // OpenSBI
+-#endif
+-
+ #include "cv180x_base.dtsi"
+ 
+ / {
+@@ -273,12 +258,7 @@
+ 		interrupts = <31 IRQ_TYPE_LEVEL_HIGH>;
+ 		interrupt-parent = <&plic0>;
+ 	};
+-#if 0
+-    emmc:cv-emmc@4300000 {
+-		interrupts = <34 IRQ_TYPE_LEVEL_HIGH>;
+-		interrupt-parent = <&plic0>;
+-	};
+-#endif
++
+ 	sd:cv-sd@4310000 {
+ 		interrupts = <36 IRQ_TYPE_LEVEL_HIGH>;
+ 		interrupt-parent = <&plic0>;
+@@ -341,13 +321,7 @@
+ 		interrupt-names = "csi0", "csi1";
+ 		interrupt-parent = <&plic0>;
+ 	};
+-#if 0
+-	ive {
+-		interrupt-names = "ive_irq";
+-		interrupt-parent = <&plic0>;
+-		interrupts = <97 IRQ_TYPE_LEVEL_HIGH>;
+-	};
+-#endif
++
+ 	vpss {
+ 		interrupts = <25 IRQ_TYPE_LEVEL_HIGH>;
+ 		interrupt-names = "sc";
+diff --git a/arch/riscv/boot/dts/cvitek/cv180x_default_memmap.dtsi b/arch/riscv/boot/dts/cvitek/cv180x_default_memmap.dtsi
+index 93ab84007..57736bca9 100644
+--- a/arch/riscv/boot/dts/cvitek/cv180x_default_memmap.dtsi
++++ b/arch/riscv/boot/dts/cvitek/cv180x_default_memmap.dtsi
+@@ -1,7 +1,7 @@
+ / {
+ 	memory@80000000 {
+ 		device_type = "memory";
+-		reg = <0x00 CVIMMAP_KERNEL_MEMORY_ADDR 0x00 CVIMMAP_KERNEL_MEMORY_SIZE>;
++		reg = <0x00 0x80000000 0x00 0x3f40000>;
+ 	};
+ 
+ 
+diff --git a/arch/riscv/boot/dts/cvitek/cvi_board_memmap.h b/arch/riscv/boot/dts/cvitek/cvi_board_memmap.h
+deleted file mode 100644
+index 043a19032..000000000
+--- a/arch/riscv/boot/dts/cvitek/cvi_board_memmap.h
++++ /dev/null
+@@ -1,35 +0,0 @@
+-#ifndef __BOARD_MMAP__b126ca63__
+-#define __BOARD_MMAP__b126ca63__
+-
+-#define CONFIG_SYS_TEXT_BASE 0x80200000  /* offset 2.0MiB */
+-#define CVIMMAP_ATF_SIZE 0x80000  /* 512.0KiB */
+-#define CVIMMAP_BOOTLOGO_ADDR 0x82473000  /* offset 36.44921875MiB */
+-#define CVIMMAP_BOOTLOGO_SIZE 0x0  /* 0.0KiB */
+-#define CVIMMAP_CONFIG_SYS_INIT_SP_ADDR 0x82300000  /* offset 35.0MiB */
+-#define CVIMMAP_CVI_UPDATE_HEADER_ADDR 0x813ffc00  /* offset 19.9990234375MiB */
+-#define CVIMMAP_CVI_UPDATE_HEADER_SIZE 0x400  /* 1.0KiB */
+-#define CVIMMAP_DRAM_BASE 0x80000000  /* offset 0.0KiB */
+-#define CVIMMAP_DRAM_SIZE 0x4000000  /* 64.0MiB */
+-#define CVIMMAP_FREERTOS_ADDR 0x83f40000  /* offset 63.25MiB */
+-#define CVIMMAP_FREERTOS_RESERVED_ION_SIZE 0x0  /* 0.0KiB */
+-#define CVIMMAP_FREERTOS_SIZE 0xc0000  /* 768.0KiB */
+-#define CVIMMAP_FSBL_C906L_START_ADDR 0x83f40000  /* offset 63.25MiB */
+-#define CVIMMAP_FSBL_UNZIP_ADDR 0x81400000  /* offset 20.0MiB */
+-#define CVIMMAP_FSBL_UNZIP_SIZE 0xf00000  /* 15.0MiB */
+-#define CVIMMAP_H26X_BITSTREAM_ADDR 0x82473000  /* offset 36.44921875MiB */
+-#define CVIMMAP_H26X_BITSTREAM_SIZE 0x0  /* 0.0KiB */
+-#define CVIMMAP_H26X_ENC_BUFF_ADDR 0x82473000  /* offset 36.44921875MiB */
+-#define CVIMMAP_H26X_ENC_BUFF_SIZE 0x0  /* 0.0KiB */
+-#define CVIMMAP_ION_ADDR 0x82473000  /* offset 36.44921875MiB */
+-#define CVIMMAP_ION_SIZE 0x1acd000  /* 26.80078125MiB */
+-#define CVIMMAP_ISP_MEM_BASE_ADDR 0x82473000  /* offset 36.44921875MiB */
+-#define CVIMMAP_ISP_MEM_BASE_SIZE 0x0  /* 0.0KiB */
+-#define CVIMMAP_KERNEL_MEMORY_ADDR 0x80000000  /* offset 0.0KiB */
+-#define CVIMMAP_KERNEL_MEMORY_SIZE 0x3f40000  /* 63.25MiB */
+-#define CVIMMAP_MONITOR_ADDR 0x80000000  /* offset 0.0KiB */
+-#define CVIMMAP_OPENSBI_FDT_ADDR 0x80080000  /* offset 512.0KiB */
+-#define CVIMMAP_OPENSBI_SIZE 0x80000  /* 512.0KiB */
+-#define CVIMMAP_UIMAG_ADDR 0x81400000  /* offset 20.0MiB */
+-#define CVIMMAP_UIMAG_SIZE 0xf00000  /* 15.0MiB */
+-
+-#endif /* __BOARD_MMAP__b126ca63__ */
+-- 
+2.34.1
+

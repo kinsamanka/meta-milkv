@@ -8,13 +8,16 @@ DEPENDS = "u-boot-mkimage-native dtc-native"
 BRANCH ?= "main"
 FORK ?= "xyq1113723547"
 
-SRC_URI = "git://github.com/${FORK}/cvitek-linux-5.10.git;protocol=https;branch=${BRANCH} \
-           "
+SRC_URI = " \
+	  git://github.com/${FORK}/cvitek-linux-5.10.git;protocol=https;branch=${BRANCH} \
+	  file://0001-cleanup-dts.patch \
+	  file://cvitek_cv1800b_milkv_duo_sd_defconfig \
+	  file://multi.its \
+          "
 
 SRCREV ?= "15ea08f842174c4eff8dcc0943de6e70b0b7aa2f"
 FILESEXTRAPATHS:prepend := "${THISDIR}/linux-milkv-duo:"
-SRC_URI += "file://cvitek_cv1800b_milkv_duo_sd_defconfig"
-SRC_URI:append:milkv-duo = " file://multi.its"
+
 LIC_FILES_CHKSUM = "file://COPYING;md5=6bc538ed5bd9a7fc9398086aedcd7e46"
 
 LINUX_VERSION ?= "5.10.4"
