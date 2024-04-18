@@ -12,7 +12,7 @@ SRC_URI = "git://github.com/${FORK}/cvitek-linux-5.10.git;protocol=https;branch=
            "
 
 SRCREV ?= "15ea08f842174c4eff8dcc0943de6e70b0b7aa2f"
-FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/linux-milkv-duo:"
 SRC_URI += "file://cvitek_cv1800b_milkv_duo_sd_defconfig"
 SRC_URI:append:milkv-duo = " file://multi.its"
 LIC_FILES_CHKSUM = "file://COPYING;md5=6bc538ed5bd9a7fc9398086aedcd7e46"
