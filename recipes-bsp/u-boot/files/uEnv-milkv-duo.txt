@@ -1,3 +1,5 @@
+ethaddr=02:BE:EF:00:00:01
+
 baudrate=115200
 consoledev=ttyS0
 optargs=earlycon=sbi loglevel=9 rootwait rw
