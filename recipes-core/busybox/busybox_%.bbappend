@@ -1,3 +1,7 @@
+SRC_URI += "file://usb-gether"
+
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+
 do_install:append() {
 	install -d ${D}/etc/rcS.d
 	install -d ${D}/etc/rc5.d
@@ -9,4 +13,7 @@ do_install:append() {
 	ln -s -r ${D}/etc/init.d/networking ${D}/etc/rc6.d/K60network
 	ln -s -r ${D}/etc/init.d/dropbear ${D}/etc/rcS.d/S50dropbear
 	ln -s -r ${D}/etc/init.d/dropbear ${D}/etc/rc6.d/K50dropbear
+
+	install -C -m 0755 ${WORKDIR}/usb-gether ${D}/etc/init.d/
+	ln -s -r ${D}/etc/init.d/usb-gether ${D}/etc/rcS.d/S30usb-gether
 }
