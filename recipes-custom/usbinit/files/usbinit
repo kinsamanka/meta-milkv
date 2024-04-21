@@ -1,0 +1,20 @@
+#! /bin/sh
+
+case "$1" in
+	start|"")
+		modprobe dwc2
+		echo device > /proc/cviusb/otg_role
+		modprobe g_ether
+		;;
+	stop)
+		ifdown usb0
+		rmmod g_ether
+		echo host > /proc/cviusb/otg_role
+		;;
+	*)
+		echo "Usage: usbinit {start|stop}" >&2
+		exit 1
+		;;
+esac
+
+exit 0

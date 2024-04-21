@@ -54,4 +54,4 @@ local_conf_header:
     INIT_MANAGER = "mdev-busybox"
     VIRTUAL-RUNTIME_dev_manager = "busybox-mdev"
     PREFERRED_PROVIDER_virtual/kernel = "linux-milkv-duo-v5.10.y"
-    CORE_IMAGE_EXTRA_INSTALL += " kernel-modules init-ifupdown dropbear blinky"
+    CORE_IMAGE_EXTRA_INSTALL += " kernel-modules init-ifupdown dropbear blinky usbinit"
