@@ -1,0 +1,22 @@
+#!/bin/sh
+
+case "$1" in
+  start)
+	if [ ! -d /sys/class/remoteproc/remoteproc0 ]; then
+		modprobe cv180x-mbox
+		modprobe cv180x-rproc
+	fi
+	echo -n stop > /sys/class/remoteproc/remoteproc0/state
+	echo blinky.elf > /sys/class/remoteproc/remoteproc0/firmware
+	echo -n start > /sys/class/remoteproc/remoteproc0/state
+	return $?
+	;;
+  stop)
+	echo -n stop > /sys/class/remoteproc/remoteproc0/state
+	return $?
+	;;
+  *)
+	echo "Usage: $0 {start|stop}"
+	exit 1
+esac
+
