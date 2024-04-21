@@ -14,6 +14,12 @@ SRC_URI = " \
 	file://0001-linux-port-cvitek-asic-chips.patch \
 	file://0002-add-support-for-milkv-duo-board.patch \
 	file://0003-add-dts.patch \
+	file://rpmsg-core-add-API-to-get-MTU.patch \
+	file://tty-add-rpmsg-driver.patch \
+	file://add-CV180x-mailbox-driver.patch \
+	file://add-CV180x-remoteproc-driver.patch \
+	file://dts-switch-to-single-cell-address.patch \
+	file://dts-add-remoteproc-support.patch \
 	file://v5_10_y_defconfig \
 	file://multi.its \
 "

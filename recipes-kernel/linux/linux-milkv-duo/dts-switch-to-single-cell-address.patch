@@ -1,0 +1,681 @@
+From a926f5afc73a5c4c69e34c7a3e982ff798a80063 Mon Sep 17 00:00:00 2001
+From: GP Orcullo <kinsamanka@gmail.com>
+Date: Sat, 20 Apr 2024 12:16:15 +0000
+Subject: [PATCH 1/2] dts: switch to single cell address and size
+
+Upstream-Status: Pending
+---
+ .../boot/dts/cvitek/cv1800b_milkv_duo_sd.dts  |   4 +-
+ arch/riscv/boot/dts/cvitek/cv180x_base.dtsi   | 145 +++++++++---------
+ .../boot/dts/cvitek/cv180x_base_riscv.dtsi    |  12 +-
+ .../dts/cvitek/cv180x_default_memmap.dtsi     |  12 +-
+ 4 files changed, 86 insertions(+), 87 deletions(-)
+
+diff --git a/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts b/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts
+index 25d3202d88c0..b8b36972999b 100644
+--- a/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts
++++ b/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts
+@@ -34,8 +34,8 @@ &i2c1 {
+ 
+ /{
+ 	reserved-memory {
+-		#size-cells = <0x1>;
+-		#address-cells = <0x1>;
++		#size-cells = <1>;
++		#address-cells = <1>;
+ 		ranges;
+ 
+ 		opensbi {
+diff --git a/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi b/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
+index a780ad5b762e..70f02e50b853 100644
+--- a/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
++++ b/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
+@@ -2,18 +2,18 @@
+ / {
+ 	compatible = "cvitek,cv180x";
+ 
+-	#size-cells = <0x2>;
+-	#address-cells = <0x2>;
++	#size-cells = <1>;
++	#address-cells = <1>;
+ 
+ 	top_misc:top_misc_ctrl@3000000 {
+ 		compatible = "syscon";
+-		reg = <0x0 0x03000000 0x0 0x8000>;
++		reg = <0x03000000 0x8000>;
+ 	};
+ 
+ 	clk_rst: clk-reset-controller {
+ 		#reset-cells = <1>;
+ 		compatible = "cvitek,clk-reset";
+-		reg = <0x0 0x03002000 0x0 0x8>;
++		reg = <0x03002000 0x8>;
+ 	};
+ 
+ 	osc: oscillator {
+@@ -25,7 +25,7 @@ osc: oscillator {
+ 
+ 	clk: clock-controller {
+ 		compatible = "cvitek,cv180x-clk";
+-		reg = <0x0 0x03002000 0x0 0x1000>;
++		reg = <0x03002000 0x1000>;
+ 		clocks = <&osc>;
+ 		#clock-cells = <1>;
+ 	};
+@@ -33,19 +33,18 @@ clk: clock-controller {
+ 	rst: reset-controller {
+ 		#reset-cells = <1>;
+ 		compatible = "cvitek,reset";
+-		reg = <0x0 0x03003000 0x0 0x10>;
++		reg = <0x03003000 0x10>;
+ 	};
+ 
+ 	restart: restart-controller {
+ 		compatible = "cvitek,restart";
+-		reg = <0x0 0x05025000 0x0 0x2000>;
++		reg = <0x05025000 0x2000>;
+ 	};
+ 
+ 	tpu {
+ 		compatible = "cvitek,tpu";
+ 		reg-names = "tdma", "tiu";
+-		reg = <0x0 0x0C100000 0x0 0x1000>,
+-			  <0x0 0x0C101000 0x0 0x1000>;
++		reg = <0x0C100000 0x1000>, <0x0C101000 0x1000>;
+ 		clocks = <&clk CV180X_CLK_TPU>, <&clk CV180X_CLK_TPU_FAB>;
+ 		clock-names = "clk_tpu_axi", "clk_tpu_fab";
+ 		resets = <&rst RST_TDMA>, <&rst RST_TPU>, <&rst RST_TPUSYS>;
+@@ -55,17 +54,17 @@ tpu {
+ 	mon {
+ 		compatible = "cvitek,mon";
+ 		reg-names = "pcmon", "ddr_ctrl", "ddr_phyd", "ddr_aximon", "ddr_top";
+-		reg = <0x0 0x01040000 0x0 0x1000>,
+-					<0x0 0x08004000 0x0 0x1000>,
+-					<0x0 0x08006000 0x0 0x1000>,
+-					<0x0 0x08008000 0x0 0x1000>,
+-					<0x0 0x0800A000 0x0 0x1000>;
++		reg =	<0x01040000 0x1000>,
++			<0x08004000 0x1000>,
++			<0x08006000 0x1000>,
++			<0x08008000 0x1000>,
++			<0x0800A000 0x1000>;
+ 	};
+ 
+ 	wiegand0 {
+ 		compatible = "cvitek,wiegand";
+ 		reg-names = "wiegand";
+-		reg = <0x0 0x03030000 0x0 0x1000>;
++		reg = <0x03030000 0x1000>;
+ 		clocks = <&clk CV180X_CLK_WGN>, <&clk CV180X_CLK_WGN0>;
+ 		clock-names = "clk_wgn", "clk_wgn1";
+ 		resets = <&rst RST_WGN0>;
+@@ -75,7 +74,7 @@ wiegand0 {
+ 	wiegand1 {
+ 		compatible = "cvitek,wiegand";
+ 		reg-names = "wiegand";
+-		reg = <0x0 0x03031000 0x0 0x1000>;
++		reg = <0x03031000 0x1000>;
+ 		clocks = <&clk CV180X_CLK_WGN>, <&clk CV180X_CLK_WGN1>;
+ 		clock-names = "clk_wgn", "clk_wgn1";
+ 		resets = <&rst RST_WGN1>;
+@@ -85,7 +84,7 @@ wiegand1 {
+ 	wiegand2 {
+ 		compatible = "cvitek,wiegand";
+ 		reg-names = "wiegand";
+-		reg = <0x0 0x03032000 0x0 0x1000>;
++		reg = <0x03032000 0x1000>;
+ 		clocks = <&clk CV180X_CLK_WGN>, <&clk CV180X_CLK_WGN2>;
+ 		clock-names = "clk_wgn", "clk_wgn1";
+ 		resets = <&rst RST_WGN2>;
+@@ -95,7 +94,7 @@ wiegand2 {
+ 	saradc {
+ 		compatible = "cvitek,saradc";
+ 		reg-names = "top_domain_saradc", "rtc_domain_saradc";
+-		reg = <0x0 0x030F0000 0x0 0x1000>, <0x0 0x0502c000 0x0 0x1000>;
++		reg = <0x030F0000 0x1000>, <0x0502c000 0x1000>;
+ 		clocks = <&clk CV180X_CLK_SARADC>;
+ 		clock-names = "clk_saradc";
+ 		resets = <&rst RST_SARADC>;
+@@ -104,7 +103,7 @@ saradc {
+ 
+ 	rtc {
+ 		compatible = "cvitek,rtc";
+-		reg = <0x0 0x05026000 0x0 0x1000>,<0x0 0x05025000 0x0 0x1000>;
++		reg = <0x05026000 0x1000>,<0x05025000 0x1000>;
+ 		clocks = <&clk CV180X_CLK_RTC_25M>;
+ 		clock-names = "clk_rtc";
+ 	};
+@@ -120,15 +119,15 @@ heap_carveout@0 {
+ 
+ 	sysdma_remap {
+ 		compatible = "cvitek,sysdma_remap";
+-		reg = <0x0 0x03000154 0x0 0x10>;
++		reg = <0x03000154 0x10>;
+ 		ch-remap = <CVI_I2S0_RX CVI_I2S2_TX CVI_I2S1_RX CVI_I2S1_TX
+-					CVI_SPI_NAND CVI_SPI_NAND CVI_I2S2_RX CVI_I2S3_TX>;
++			    CVI_SPI_NAND CVI_SPI_NAND CVI_I2S2_RX CVI_I2S3_TX>;
+ 		int_mux_base = <0x03000298>;
+ 	};
+ 
+ 	dmac: dma@0x4330000 {
+ 		compatible = "snps,dmac-bm";
+-		reg = <0x0 0x04330000 0x0 0x1000>;
++		reg = <0x04330000 0x1000>;
+ 		clock-names = "clk_sdma_axi";
+ 		clocks = <&clk CV180X_CLK_SDMA_AXI>;
+ 
+@@ -146,35 +145,35 @@ dmac: dma@0x4330000 {
+ 
+ 	watchdog0: cv-wd@0x3010000 {
+ 		compatible = "snps,dw-wdt";
+-		reg = <0x0 0x03010000 0x0 0x1000>;
++		reg = <0x03010000 0x1000>;
+ 		resets = <&rst RST_WDT>;
+ 		clocks = <&pclk>;
+ 	};
+ 
+ 	pwm0: pwm@3060000 {
+ 		compatible = "cvitek,cvi-pwm";
+-		reg = <0x0 0x3060000 0x0 0x1000>;
++		reg = <0x3060000 0x1000>;
+ 		clocks = <&clk CV180X_CLK_PWM>;
+ 		#pwm-cells = <1>;
+ 	};
+ 
+ 	pwm1: pwm@3061000 {
+ 		compatible = "cvitek,cvi-pwm";
+-		reg = <0x0 0x3061000 0x0 0x1000>;
++		reg = <0x3061000 0x1000>;
+ 		clocks = <&clk CV180X_CLK_PWM>;
+ 		#pwm-cells = <2>;
+ 	};
+ 
+ 	pwm2: pwm@3062000 {
+ 		compatible = "cvitek,cvi-pwm";
+-		reg = <0x0 0x3062000 0x0 0x1000>;
++		reg = <0x3062000 0x1000>;
+ 		clocks = <&clk CV180X_CLK_PWM>;
+ 		#pwm-cells = <3>;
+ 	};
+ 
+ 	pwm3: pwm@3063000 {
+ 		compatible = "cvitek,cvi-pwm";
+-		reg = <0x0 0x3063000 0x0 0x1000>;
++		reg = <0x3063000 0x1000>;
+ 		clocks = <&clk CV180X_CLK_PWM>;
+ 		#pwm-cells = <4>;
+ 	};
+@@ -187,7 +186,7 @@ pclk: pclk {
+ 
+ 	spinand:cv-spinf@4060000 {
+ 		compatible = "cvitek,cv1835-spinf";
+-		reg = <0x0 0x4060000 0x0 0x1000>;
++		reg = <0x4060000 0x1000>;
+ 		reg-names = "core_mem";
+ 		bus-width = <4>;
+ 		dmas = <&dmac 4 1 1
+@@ -198,7 +197,7 @@ spinand:cv-spinf@4060000 {
+ 	spif:cvi-spif@10000000 {
+ 		compatible = "cvitek,cvi-spif";
+ 		bus-num = <0>;
+-		reg = <0x0 0x10000000 0x0 0x10000000>;
++		reg = <0x10000000 0x10000000>;
+ 		reg-names = "spif";
+ 		sck-div = <3>;
+ 		sck_mhz = <300>;
+@@ -212,7 +211,7 @@ spiflash {
+ 
+ 	spi0:spi0@04180000 {
+ 		compatible = "snps,dw-apb-ssi";
+-		reg = <0x0 0x04180000 0x0 0x10000>;
++		reg = <0x04180000 0x10000>;
+ 		clocks = <&clk CV180X_CLK_SPI>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+@@ -220,7 +219,7 @@ spi0:spi0@04180000 {
+ 
+ 	spi1:spi1@04190000 {
+ 		compatible = "snps,dw-apb-ssi";
+-		reg = <0x0 0x04190000 0x0 0x10000>;
++		reg = <0x04190000 0x10000>;
+ 		clocks = <&clk CV180X_CLK_SPI>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+@@ -228,7 +227,7 @@ spi1:spi1@04190000 {
+ 
+ 	spi2:spi2@041A0000 {
+ 		compatible = "snps,dw-apb-ssi";
+-		reg = <0x0 0x041A0000 0x0 0x10000>;
++		reg = <0x041A0000 0x10000>;
+ 		clocks = <&clk CV180X_CLK_SPI>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+@@ -236,7 +235,7 @@ spi2:spi2@041A0000 {
+ 
+ 	spi3:spi3@041B0000 {
+ 		compatible = "snps,dw-apb-ssi";
+-		reg = <0x0 0x041B0000 0x0 0x10000>;
++		reg = <0x041B0000 0x10000>;
+ 		clocks = <&clk CV180X_CLK_SPI>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+@@ -244,7 +243,7 @@ spi3:spi3@041B0000 {
+ 
+ 	uart0: serial@04140000 {
+ 		compatible = "snps,dw-apb-uart";
+-		reg = <0x0 0x04140000 0x0 0x1000>;
++		reg = <0x04140000 0x1000>;
+ 		clock-frequency = <25000000>;
+ 		reg-shift = <2>;
+ 		reg-io-width = <4>;
+@@ -253,7 +252,7 @@ uart0: serial@04140000 {
+ 
+ 	uart1: serial@04150000 {
+ 		compatible = "snps,dw-apb-uart";
+-		reg = <0x0 0x04150000 0x0 0x1000>;
++		reg = <0x04150000 0x1000>;
+ 		clock-frequency = <25000000>;
+ 		reg-shift = <2>;
+ 		reg-io-width = <4>;
+@@ -262,7 +261,7 @@ uart1: serial@04150000 {
+ 
+ 	uart2: serial@04160000 {
+ 		compatible = "snps,dw-apb-uart";
+-		reg = <0x0 0x04160000 0x0 0x1000>;
++		reg = <0x04160000 0x1000>;
+ 		clock-frequency = <25000000>;
+ 		reg-shift = <2>;
+ 		reg-io-width = <4>;
+@@ -271,7 +270,7 @@ uart2: serial@04160000 {
+ 
+ 	uart3: serial@04170000 {
+ 		compatible = "snps,dw-apb-uart";
+-		reg = <0x0 0x04170000 0x0 0x1000>;
++		reg = <0x04170000 0x1000>;
+ 		clock-frequency = <25000000>;
+ 		reg-shift = <2>;
+ 		reg-io-width = <4>;
+@@ -280,7 +279,7 @@ uart3: serial@04170000 {
+ 
+ 	uart4: serial@041C0000 {
+ 		compatible = "snps,dw-apb-uart";
+-		reg = <0x0 0x041C0000 0x0 0x1000>;
++		reg = <0x041C0000 0x1000>;
+ 		clock-frequency = <25000000>;
+ 		reg-shift = <2>;
+ 		reg-io-width = <4>;
+@@ -289,7 +288,7 @@ uart4: serial@041C0000 {
+ 
+ 	gpio0: gpio@03020000 {
+ 		compatible = "snps,dw-apb-gpio";
+-		reg = <0x0 0x03020000 0x0 0x1000>;
++		reg = <0x03020000 0x1000>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+@@ -305,7 +304,7 @@ porta: gpio-controller@0 {
+ 
+ 	gpio1: gpio@03021000 {
+ 		compatible = "snps,dw-apb-gpio";
+-		reg = <0x0 0x03021000 0x0 0x1000>;
++		reg = <0x03021000 0x1000>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+@@ -321,7 +320,7 @@ portb: gpio-controller@1 {
+ 
+ 	gpio2: gpio@03022000 {
+ 		compatible = "snps,dw-apb-gpio";
+-		reg = <0x0 0x03022000 0x0 0x1000>;
++		reg = <0x03022000 0x1000>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+@@ -337,7 +336,7 @@ portc: gpio-controller@2 {
+ 
+ 	gpio3: gpio@03023000 {
+ 		compatible = "snps,dw-apb-gpio";
+-		reg = <0x0 0x03023000 0x0 0x1000>;
++		reg = <0x03023000 0x1000>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+@@ -353,7 +352,7 @@ portd: gpio-controller@3 {
+ 
+ 	gpio4: gpio@05021000 {
+ 		compatible = "snps,dw-apb-gpio";
+-		reg = <0x0 0x05021000 0x0 0x1000>;
++		reg = <0x05021000 0x1000>;
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+@@ -370,7 +369,7 @@ porte: gpio-controller@4 {
+ 	i2c0: i2c@04000000 {
+ 		compatible = "snps,designware-i2c";
+ 		clocks = <&clk CV180X_CLK_I2C>;
+-		reg = <0x0 0x04000000 0x0 0x1000>;
++		reg = <0x04000000 0x1000>;
+ 		clock-frequency = <400000>;
+ 
+ 		#size-cells = <0x0>;
+@@ -382,7 +381,7 @@ i2c0: i2c@04000000 {
+ 	i2c1: i2c@04010000 {
+ 		compatible = "snps,designware-i2c";
+ 		clocks = <&clk CV180X_CLK_I2C>;
+-		reg = <0x0 0x04010000 0x0 0x1000>;
++		reg = <0x04010000 0x1000>;
+ 		clock-frequency = <400000>;
+ 
+ 		#size-cells = <0x0>;
+@@ -394,7 +393,7 @@ i2c1: i2c@04010000 {
+ 	i2c2: i2c@04020000 {
+ 		compatible = "snps,designware-i2c";
+ 		clocks = <&clk CV180X_CLK_I2C>;
+-		reg = <0x0 0x04020000 0x0 0x1000>;
++		reg = <0x04020000 0x1000>;
+ 		clock-frequency = <100000>;
+ 
+ 		#size-cells = <0x0>;
+@@ -406,7 +405,7 @@ i2c2: i2c@04020000 {
+ 	i2c3: i2c@04030000 {
+ 		compatible = "snps,designware-i2c";
+ 		clocks = <&clk CV180X_CLK_I2C>;
+-		reg = <0x0 0x04030000 0x0 0x1000>;
++		reg = <0x04030000 0x1000>;
+ 		clock-frequency = <400000>;
+ 
+ 		#size-cells = <0x0>;
+@@ -418,7 +417,7 @@ i2c3: i2c@04030000 {
+ 	i2c4: i2c@04040000 {
+ 		compatible = "snps,designware-i2c";
+ 		clocks = <&clk CV180X_CLK_I2C>;
+-		reg = <0x0 0x04040000 0x0 0x1000>;
++		reg = <0x04040000 0x1000>;
+ 		clock-frequency = <400000>;
+ 
+ 		#size-cells = <0x0>;
+@@ -459,7 +458,7 @@ mtl_tx_setup: tx-queues-config {
+ 
+ 	ethernet0: ethernet@4070000 {
+ 		compatible = "cvitek,ethernet";
+-		reg = <0x0 0x04070000 0x0 0x10000>;
++		reg = <0x04070000 0x10000>;
+ 		clock-names = "stmmaceth", "ptp_ref";
+ 		clocks = <&eth_csrclk>, <&eth_ptpclk>;
+ 		//phy-reset-gpios = <&porta 26 0>;
+@@ -483,7 +482,7 @@ ethernet0: ethernet@4070000 {
+ 
+ 	sd:cv-sd@4310000 {
+ 		compatible = "cvitek,cv180x-sd";
+-		reg = <0x0 0x4310000 0x0 0x1000>;
++		reg = <0x4310000 0x1000>;
+ 		reg-names = "core_mem";
+ 		bus-width = <4>;
+ 		cap-sd-highspeed;
+@@ -509,7 +508,7 @@ sd:cv-sd@4310000 {
+ 	wifisd:wifi-sd@4320000 {
+ 		compatible = "cvitek,cv180x-sdio";
+ 		bus-width = <4>;
+-		reg = <0x0 0x4320000 0x0 0x1000>;
++		reg = <0x4320000 0x1000>;
+ 		reg_names = "core_mem";
+ 		src-frequency = <375000000>;
+ 		min-frequency = <400000>;
+@@ -533,7 +532,7 @@ i2s_mclk: i2s_mclk {
+ 
+ 	i2s_subsys {
+ 		compatible = "cvitek,i2s_tdm_subsys";
+-		reg = <0x0 0x04108000 0x0 0x100>;
++		reg = <0x04108000 0x100>;
+ 		clocks = <&i2s_mclk>, <&clk CV180X_CLK_A0PLL>,
+ 			<&clk CV180X_CLK_SDMA_AUD0>, <&clk CV180X_CLK_SDMA_AUD1>,
+ 			<&clk CV180X_CLK_SDMA_AUD2>, <&clk CV180X_CLK_SDMA_AUD3>;
+@@ -545,7 +544,7 @@ i2s_subsys {
+ 
+ 	i2s0: i2s@04100000 {
+ 		compatible = "cvitek,cv1835-i2s";
+-		reg = <0x0 0x04100000 0x0 0x2000>;
++		reg = <0x04100000 0x2000>;
+ 		clocks = <&i2s_mclk 0>;
+ 		clock-names = "i2sclk";
+ 		dev-id = <0>;
+@@ -558,7 +557,7 @@ i2s0: i2s@04100000 {
+ 
+ 	i2s1: i2s@04110000 {
+ 		compatible = "cvitek,cv1835-i2s";
+-		reg = <0x0 0x04110000 0x0 0x2000>;
++		reg = <0x04110000 0x2000>;
+ 		clocks = <&i2s_mclk 0>;
+ 		clock-names = "i2sclk";
+ 		dev-id = <1>;
+@@ -572,7 +571,7 @@ i2s1: i2s@04110000 {
+ 
+ 	i2s2: i2s@04120000 {
+ 		compatible = "cvitek,cv1835-i2s";
+-		reg = <0x0 0x04120000 0x0 0x2000>;
++		reg = <0x04120000 0x2000>;
+ 		clocks = <&i2s_mclk 0>;
+ 		clock-names = "i2sclk";
+ 		dev-id = <2>;
+@@ -587,7 +586,7 @@ i2s2: i2s@04120000 {
+ 
+ 	i2s3: i2s@04130000 {
+ 		compatible = "cvitek,cv1835-i2s";
+-		reg = <0x0 0x04130000 0x0 0x2000>;
++		reg = <0x04130000 0x2000>;
+ 		clocks = <&i2s_mclk 0>;
+ 		clock-names = "i2sclk";
+ 		dev-id = <3>;
+@@ -600,7 +599,7 @@ i2s3: i2s@04130000 {
+ 
+ 	adc: adc@0300A100 {
+ 		compatible = "cvitek,cv182xaadc";
+-		reg = <0x0 0x0300A100 0x0 0x100>;
++		reg = <0x0300A100 0x100>;
+ 		clocks = <&i2s_mclk 0>;
+ 		clock-names = "i2sclk";
+ 		clk_source = <0x04130000>; /* MCLK source is I2S3 */
+@@ -608,14 +607,14 @@ adc: adc@0300A100 {
+ 
+ 	dac: dac@0300A000 {
+ 		compatible = "cvitek,cv182xadac";
+-		reg = <0x0 0x0300A000 0x0 0x100>;
++		reg = <0x0300A000 0x100>;
+ 		clocks = <&i2s_mclk 0>;
+ 		clock-names = "i2sclk";
+ 	};
+ 
+ 	pdm: pdm@0x041D0C00 {
+ 		compatible = "cvitek,cv1835pdm";
+-		reg = <0x0 0x041D0C00 0x0 0x100>;
++		reg = <0x041D0C00 0x100>;
+ 		clocks = <&i2s_mclk 0>;
+ 		clock-names = "i2sclk";
+ 	};
+@@ -651,8 +650,8 @@ bt_pin {
+ 
+ 	mipi_rx: cif {
+ 		compatible = "cvitek,cif";
+-		reg = <0x0 0x0a0c2000 0x0 0x2000>, <0x0 0x0a0d0000 0x0 0x1000>,
+-		      <0x0 0x0a0c4000 0x0 0x2000>, <0x0 0x03001c30 0x0 0x30>;
++		reg = <0x0a0c2000 0x2000>, <0x0a0d0000 0x1000>,
++		      <0x0a0c4000 0x2000>, <0x03001c30 0x30>;
+ 		reg-names = "csi_mac0", "csi_wrap0", "csi_mac1", "pad_ctrl";
+ 		snsr-reset = <&porta 2 GPIO_ACTIVE_LOW>, <&porta 2 GPIO_ACTIVE_LOW>, <&porta 2 GPIO_ACTIVE_LOW>;
+ 		resets = <&rst RST_CSIPHY0>, <&rst RST_CSIPHY1>,
+@@ -670,13 +669,13 @@ sys {
+ 
+ 	base {
+ 		compatible = "cvitek,base";
+-		reg = <0x0 0x0a0c8000 0x0 0x20>;
++		reg = <0x0a0c8000 0x20>;
+ 		reg-names = "vip_sys";
+ 	};
+ 
+ 	vi {
+ 		compatible = "cvitek,vi";
+-		reg = <0x0 0x0a000000 0x0 0x80000>;
++		reg = <0x0a000000 0x80000>;
+ 		clocks = <&clk CV180X_CLK_SRC_VIP_SYS_0>, <&clk CV180X_CLK_SRC_VIP_SYS_1>,
+ 				<&clk CV180X_CLK_SRC_VIP_SYS_2>, <&clk CV180X_CLK_SRC_VIP_SYS_3>,
+ 				<&clk CV180X_CLK_AXI_VIP>, <&clk CV180X_CLK_CSI_BE_VIP>,
+@@ -691,7 +690,7 @@ vi {
+ 
+ 	vpss {
+ 		compatible = "cvitek,vpss";
+-		reg = <0x0 0x0a080000 0x0 0x10000>, <0x0 0x0a0d1000 0x0 0x100>;
++		reg = <0x0a080000 0x10000>, <0x0a0d1000 0x100>;
+ 		reg-names = "sc";
+ 		clocks = <&clk CV180X_CLK_SRC_VIP_SYS_0>,	<&clk CV180X_CLK_SRC_VIP_SYS_1>,
+ 			<&clk CV180X_CLK_SRC_VIP_SYS_2>, <&clk CV180X_CLK_IMG_D_VIP>,
+@@ -708,7 +707,7 @@ vpss {
+ 
+ 	dwa {
+ 		compatible = "cvitek,dwa";
+-		reg = <0x0 0x0a0c0000 0x0 0x1000>;
++		reg = <0x0a0c0000 0x1000>;
+ 		reg-names = "dwa";
+ 		clocks = <&clk CV180X_CLK_SRC_VIP_SYS_0>, <&clk CV180X_CLK_SRC_VIP_SYS_1>,
+ 			<&clk CV180X_CLK_SRC_VIP_SYS_2>, <&clk CV180X_CLK_SRC_VIP_SYS_3>,
+@@ -725,8 +724,8 @@ rgn {
+ 
+ 	vcodec {
+ 		compatible = "cvitek,asic-vcodec";
+-		reg = <0x0 0x0B020000 0x0 0x10000>,<0x0 0x0B010000 0x0 0x10000>,<0x0 0x0B030000 0x0 0x100>,
+-		      <0x0 0x0B058000 0x0 0x100>,<0x0 0x0B050000 0x0 0x400>;
++		reg = <0x0B020000 0x10000>,<0x0B010000 0x10000>,<0x0B030000 0x100>,
++		      <0x0B058000 0x00100>,<0x0B050000 0x400>;
+ 		reg-names = "h265","h264","vc_ctrl","vc_sbm","vc_addr_remap";
+ 		clocks = <&clk CV180X_CLK_AXI_VIDEO_CODEC>,
+ 			<&clk CV180X_CLK_H264C>, <&clk CV180X_CLK_APB_H264C>,
+@@ -742,7 +741,7 @@ vcodec {
+ 
+ 	jpu {
+ 		compatible = "cvitek,asic-jpeg";
+-		reg = <0x0 0x0B000000 0x0 0x300>,<0x0 0x0B030000 0x0 0x100>,<0x0 0x0B058000 0x0 0x100>;
++		reg = <0x0B000000 0x300>,<0x0B030000 0x100>,<0x0B058000 0x100>;
+ 		reg-names = "jpeg","vc_ctrl","vc_sbm";
+ 		clocks = <&clk CV180X_CLK_AXI_VIDEO_CODEC>,
+ 			<&clk CV180X_CLK_JPEG>, <&clk CV180X_CLK_APB_JPEG>,
+@@ -758,7 +757,7 @@ jpu {
+ 
+ 	cvi_vc_drv {
+ 		compatible = "cvitek,cvi_vc_drv";
+-		reg = <0x0 0x0B030000 0x0 0x100>,<0x0 0x0B058000 0x0 0x100>,<0x0 0x0B050000 0x0 0x400>;
++		reg = <0x0B030000 0x100>,<0x0B058000 0x100>,<0x0B050000 0x400>;
+ 		reg-names = "vc_ctrl","vc_sbm","vc_addr_remap";
+ 	};
+ 
+@@ -770,8 +769,8 @@ rtos_cmdqu {
+ 
+ 	usb: usb@04340000 {
+ 		compatible = "cvitek,cv182x-usb";
+-		reg = <0x0 0x04340000 0x0 0x10000>,
+-			<0x0 0x03006000 0x0 0x58>;	//USB 2.0 PHY
++		reg = <0x04340000 0x10000>,
++			<0x03006000 0x58>;	//USB 2.0 PHY
+ 		dr_mode = "otg";
+ 		g-use-dma;
+ 		g-rx-fifo-size = <536>;
+@@ -789,7 +788,7 @@ usb: usb@04340000 {
+ 
+ 	thermal:thermal@030E0000 {
+ 		compatible = "cvitek,cv180x-thermal";
+-		reg = <0x0 0x030E0000 0x0 0x10000>;
++		reg = <0x030E0000 0x10000>;
+ 		clocks = <&clk CV180X_CLK_TEMPSEN>;
+ 		clock-names = "clk_tempsen";
+ 		reset-names = "tempsen";
+@@ -832,7 +831,7 @@ audio_clock: audio_clock {
+ 		compatible = "fixed-clock";
+ 		#clock-cells = <0>;
+ 		clock-frequency = <24576000>;
+-		};
++	};
+ 
+ 
+ 	aliases {
+diff --git a/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi b/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi
+index 933d104f7872..de499a5a4e8a 100644
+--- a/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi
++++ b/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi
+@@ -9,8 +9,8 @@
+ / {
+ 	model = "Cvitek. CV180X ASIC. C906.";
+ 
+-	#size-cells = <0x2>;
+-	#address-cells = <0x2>;
++	#size-cells = <1>;
++	#address-cells = <1>;
+ 
+ 	c906_cpus:cpus {
+ 		#address-cells = <0x01>;
+@@ -45,8 +45,8 @@ cpu0_intc: interrupt-controller {
+ 	};
+ 
+ 	soc {
+-		#address-cells = <0x02>;
+-		#size-cells = <0x02>;
++		#address-cells = <0x01>;
++		#size-cells = <1>;
+ 		compatible = "simple-bus";
+ 		ranges;
+ 
+@@ -54,7 +54,7 @@ plic0: interrupt-controller@70000000 {
+ 			riscv,ndev = <101>;
+ 			riscv,max-priority = <0x07>;
+ 			reg-names = "control";
+-			reg = <0x00 0x70000000 0x00 0x4000000>;
++			reg = <0x70000000 0x4000000>;
+ 			interrupts-extended = <&cpu0_intc 0xffffffff &cpu0_intc 0x09>;
+ 			interrupt-controller;
+ 			compatible = "riscv,plic0";
+@@ -64,7 +64,7 @@ plic0: interrupt-controller@70000000 {
+ 
+ 		clint@74000000 {
+ 			interrupts-extended = <&cpu0_intc 0x03 &cpu0_intc 0x07>;
+-			reg = <0x00 0x74000000 0x00 0x10000>;
++			reg = <0x74000000 0x10000>;
+ 			compatible = "riscv,clint0";
+ 			clint,has-no-64bit-mmio;
+ 		};
+diff --git a/arch/riscv/boot/dts/cvitek/cv180x_default_memmap.dtsi b/arch/riscv/boot/dts/cvitek/cv180x_default_memmap.dtsi
+index 57736bca9ab8..0fb2cd353cd5 100644
+--- a/arch/riscv/boot/dts/cvitek/cv180x_default_memmap.dtsi
++++ b/arch/riscv/boot/dts/cvitek/cv180x_default_memmap.dtsi
+@@ -1,26 +1,26 @@
+ / {
+ 	memory@80000000 {
+ 		device_type = "memory";
+-		reg = <0x00 0x80000000 0x00 0x3f40000>;
++		reg = <0x80000000 0x3f40000>;
+ 	};
+ 
+ 
+ 	fast_image {
+ 		compatible = "cvitek,rtos_image";
+ 		reg-names = "rtos_region";
+-		reg = <0x0 CVIMMAP_FREERTOS_ADDR 0x0 CVIMMAP_FREERTOS_SIZE>;
++		reg = <CVIMMAP_FREERTOS_ADDR CVIMMAP_FREERTOS_SIZE>;
+ 		ion-size = <CVIMMAP_FREERTOS_RESERVED_ION_SIZE>;	//reserved ion size for freertos
+ 	};
+ 
+ 	reserved-memory {
+-		#size-cells = <0x2>;
+-		#address-cells = <0x2>;
++		#size-cells = <1>;
++		#address-cells = <1>;
+ 		ranges;
+ 
+ 		ion_reserved: ion {
+ 			compatible = "ion-region";
+-			alloc-ranges = <0x0 CVIMMAP_ION_ADDR 0 CVIMMAP_ION_SIZE>;
+-			size = <0x0 CVIMMAP_ION_SIZE>;
++			alloc-ranges = <CVIMMAP_ION_ADDR CVIMMAP_ION_SIZE>;
++			size = <CVIMMAP_ION_SIZE>;
+ 		};
+ 	};
+ };
+-- 
+2.44.0
+

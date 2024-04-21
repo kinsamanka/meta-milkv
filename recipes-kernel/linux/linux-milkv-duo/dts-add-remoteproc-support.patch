@@ -1,0 +1,125 @@
+From 4b6f946f13ce45ddeb982e17e8f226180de5558f Mon Sep 17 00:00:00 2001
+From: GP Orcullo <kinsamanka@gmail.com>
+Date: Sat, 20 Apr 2024 08:49:39 +0000
+Subject: [PATCH 2/2] dts: add remoteproc support
+
+Upstream-Status: Pending
+---
+ .../boot/dts/cvitek/cv1800b_milkv_duo_sd.dts  | 32 +++++++++++++++++++
+ arch/riscv/boot/dts/cvitek/cv180x_base.dtsi   | 22 ++++++++-----
+ .../boot/dts/cvitek/cv180x_base_riscv.dtsi    |  2 +-
+ 3 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts b/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts
+index b8b36972999b..63ff63081984 100644
+--- a/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts
++++ b/arch/riscv/boot/dts/cvitek/cv1800b_milkv_duo_sd.dts
+@@ -32,6 +32,19 @@ &i2c1 {
+ 	clock-frequency = <100000>;
+ };
+ 
++&mbox {
++	status = "okay";
++};
++
++&rproc {
++	status = "okay";
++	memory-region = <&c906l>, <&vdev0vring0>, <&vdev0vring1>, <&vdev0buffer>;
++	mboxes = <&mbox 2 &mbox 3>;
++	mbox-names = "rx", "tx";
++	core-name = "c906l";
++	firmware-name = "firmware.elf";
++};
++
+ /{
+ 	reserved-memory {
+ 		#size-cells = <1>;
+@@ -41,6 +54,25 @@ reserved-memory {
+ 		opensbi {
+ 			compatible = "removed-dma-pool";
+ 			reg = <0x80000000 0x60000>;
++		};
++
++		c906l: c906l@83f40000 {
++			reg = <0x83f40000 0xb8000>;
++			no-map;
++		};
++
++		vdev0buffer: vdev0buffer@83ff8000 {
++			reg = <0x83ff8000 0x4000>;
++			no-map;
++		};
++
++		vdev0vring0: vdev0vring0@83ffc000 {
++			reg = <0x83ffc000 0x2000>;
++			no-map;
++		};
++
++		vdev0vring1: vdev0vring1@83ffe000 {
++			reg = <0x83ffe000 0x2000>;
+ 			no-map;
+ 		};
+ 	};
+diff --git a/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi b/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
+index 70f02e50b853..204388cfa188 100644
+--- a/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
++++ b/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
+@@ -32,8 +32,8 @@ clk: clock-controller {
+ 
+ 	rst: reset-controller {
+ 		#reset-cells = <1>;
+-		compatible = "cvitek,reset";
+-		reg = <0x03003000 0x10>;
++		compatible = "cvitek,reset", "syscon";
++		reg = <0x03003000 0x1000>;
+ 	};
+ 
+ 	restart: restart-controller {
+@@ -761,12 +761,6 @@ cvi_vc_drv {
+ 		reg-names = "vc_ctrl","vc_sbm","vc_addr_remap";
+ 	};
+ 
+-	rtos_cmdqu {
+-		compatible = "cvitek,rtos_cmdqu";
+-		reg = <0x0 0x01900000 0x0 0x1000>;
+-		reg-names = "mailbox";
+-	};
+-
+ 	usb: usb@04340000 {
+ 		compatible = "cvitek,cv182x-usb";
+ 		reg = <0x04340000 0x10000>,
+@@ -833,6 +827,18 @@ audio_clock: audio_clock {
+ 		clock-frequency = <24576000>;
+ 	};
+ 
++	mbox: mbox {
++		compatible = "sophgo,cv180x-mbox";
++		reg = <0x01900000 0x1000>;
++		#mbox-cells = <1>;
++		status = "disabled";
++	};
++
++	rproc: rproc {
++		compatible = "sophgo,cv180x-rproc";
++		status = "disabled";
++		syscon = <&rst>;
++	};
+ 
+ 	aliases {
+ 		i2c0 = &i2c0;
+diff --git a/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi b/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi
+index de499a5a4e8a..e495e1b2c162 100644
+--- a/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi
++++ b/arch/riscv/boot/dts/cvitek/cv180x_base_riscv.dtsi
+@@ -304,7 +304,7 @@ jpu {
+ 		interrupt-parent = <&plic0>;
+ 	};
+ 
+-	rtos_cmdqu {
++	mbox {
+ 		interrupts = <101 IRQ_TYPE_LEVEL_HIGH>;
+ 		interrupt-names = "mailbox";
+ 		interrupt-parent = <&plic0>;
+-- 
+2.44.0
+

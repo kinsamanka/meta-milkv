@@ -1,0 +1,142 @@
+From 78592099cfb1e0003f6792b053118ec9fc5e0739 Mon Sep 17 00:00:00 2001
+From: Arnaud Pouliquen <arnaud.pouliquen@foss.st.com>
+Date: Fri, 15 Oct 2021 11:47:00 +0200
+Subject: [PATCH 1/4] rpmsg: core: add API to get MTU
+
+Return the rpmsg buffer MTU for sending message, so rpmsg users
+can split a long message in several sub rpmsg buffers.
+
+Reviewed-by: Mathieu Poirier <mathieu.poirier@linaro.org>
+Reviewed-by: Bjorn Andersson <bjorn.andersson@linaro.org>
+Acked-by: Suman Anna <s-anna@ti.com>
+Signed-off-by: Arnaud Pouliquen <arnaud.pouliquen@foss.st.com>
+Link: https://lore.kernel.org/r/20211015094701.5732-2-arnaud.pouliquen@foss.st.com
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+Upstream-Status: Backport
+
+---
+ drivers/rpmsg/rpmsg_core.c       | 21 +++++++++++++++++++++
+ drivers/rpmsg/rpmsg_internal.h   |  2 ++
+ drivers/rpmsg/virtio_rpmsg_bus.c | 10 ++++++++++
+ include/linux/rpmsg.h            | 10 ++++++++++
+ 4 files changed, 43 insertions(+)
+
+diff --git a/drivers/rpmsg/rpmsg_core.c b/drivers/rpmsg/rpmsg_core.c
+index 028ca5961bc2..9818029d3a3d 100644
+--- a/drivers/rpmsg/rpmsg_core.c
++++ b/drivers/rpmsg/rpmsg_core.c
+@@ -283,6 +283,27 @@ int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
+ }
+ EXPORT_SYMBOL(rpmsg_trysend_offchannel);
+ 
++/**
++ * rpmsg_get_mtu() - get maximum transmission buffer size for sending message.
++ * @ept: the rpmsg endpoint
++ *
++ * This function returns maximum buffer size available for a single outgoing message.
++ *
++ * Return: the maximum transmission size on success and an appropriate error
++ * value on failure.
++ */
++
++ssize_t rpmsg_get_mtu(struct rpmsg_endpoint *ept)
++{
++	if (WARN_ON(!ept))
++		return -EINVAL;
++	if (!ept->ops->get_mtu)
++		return -ENOTSUPP;
++
++	return ept->ops->get_mtu(ept);
++}
++EXPORT_SYMBOL(rpmsg_get_mtu);
++
+ /*
+  * match a rpmsg channel with a channel info struct.
+  * this is used to make sure we're not creating rpmsg devices for channels
+diff --git a/drivers/rpmsg/rpmsg_internal.h b/drivers/rpmsg/rpmsg_internal.h
+index 3fc83cd50e98..e6f88ee90ff6 100644
+--- a/drivers/rpmsg/rpmsg_internal.h
++++ b/drivers/rpmsg/rpmsg_internal.h
+@@ -47,6 +47,7 @@ struct rpmsg_device_ops {
+  * @trysendto:		see @rpmsg_trysendto(), optional
+  * @trysend_offchannel:	see @rpmsg_trysend_offchannel(), optional
+  * @poll:		see @rpmsg_poll(), optional
++ * @get_mtu:		see @rpmsg_get_mtu(), optional
+  *
+  * Indirection table for the operations that a rpmsg backend should implement.
+  * In addition to @destroy_ept, the backend must at least implement @send and
+@@ -66,6 +67,7 @@ struct rpmsg_endpoint_ops {
+ 			     void *data, int len);
+ 	__poll_t (*poll)(struct rpmsg_endpoint *ept, struct file *filp,
+ 			     poll_table *wait);
++	ssize_t (*get_mtu)(struct rpmsg_endpoint *ept);
+ };
+ 
+ int rpmsg_register_device(struct rpmsg_device *rpdev);
+diff --git a/drivers/rpmsg/virtio_rpmsg_bus.c b/drivers/rpmsg/virtio_rpmsg_bus.c
+index 7d7ed4e5cce7..4abc86162da3 100644
+--- a/drivers/rpmsg/virtio_rpmsg_bus.c
++++ b/drivers/rpmsg/virtio_rpmsg_bus.c
+@@ -181,6 +181,7 @@ static int virtio_rpmsg_trysendto(struct rpmsg_endpoint *ept, void *data,
+ 				  int len, u32 dst);
+ static int virtio_rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src,
+ 					   u32 dst, void *data, int len);
++static ssize_t virtio_rpmsg_get_mtu(struct rpmsg_endpoint *ept);
+ 
+ static const struct rpmsg_endpoint_ops virtio_endpoint_ops = {
+ 	.destroy_ept = virtio_rpmsg_destroy_ept,
+@@ -190,6 +191,7 @@ static const struct rpmsg_endpoint_ops virtio_endpoint_ops = {
+ 	.trysend = virtio_rpmsg_trysend,
+ 	.trysendto = virtio_rpmsg_trysendto,
+ 	.trysend_offchannel = virtio_rpmsg_trysend_offchannel,
++	.get_mtu = virtio_rpmsg_get_mtu,
+ };
+ 
+ /**
+@@ -705,6 +707,14 @@ static int virtio_rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src,
+ 	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, false);
+ }
+ 
++static ssize_t virtio_rpmsg_get_mtu(struct rpmsg_endpoint *ept)
++{
++	struct rpmsg_device *rpdev = ept->rpdev;
++	struct virtio_rpmsg_channel *vch = to_virtio_rpmsg_channel(rpdev);
++
++	return vch->vrp->buf_size - sizeof(struct rpmsg_hdr);
++}
++
+ static int rpmsg_recv_single(struct virtproc_info *vrp, struct device *dev,
+ 			     struct rpmsg_hdr *msg, unsigned int len)
+ {
+diff --git a/include/linux/rpmsg.h b/include/linux/rpmsg.h
+index a68972b097b7..765efc140826 100644
+--- a/include/linux/rpmsg.h
++++ b/include/linux/rpmsg.h
+@@ -135,6 +135,8 @@ int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
+ __poll_t rpmsg_poll(struct rpmsg_endpoint *ept, struct file *filp,
+ 			poll_table *wait);
+ 
++ssize_t rpmsg_get_mtu(struct rpmsg_endpoint *ept);
++
+ #else
+ 
+ static inline int register_rpmsg_device(struct rpmsg_device *dev)
+@@ -242,6 +244,14 @@ static inline __poll_t rpmsg_poll(struct rpmsg_endpoint *ept,
+ 	return 0;
+ }
+ 
++static inline ssize_t rpmsg_get_mtu(struct rpmsg_endpoint *ept)
++{
++	/* This shouldn't be possible */
++	WARN_ON(1);
++
++	return -ENXIO;
++}
++
+ #endif /* IS_ENABLED(CONFIG_RPMSG) */
+ 
+ /* use a macro to avoid include chaining to get THIS_MODULE */
+-- 
+2.39.2
+
