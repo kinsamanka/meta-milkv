@@ -20,6 +20,7 @@ SRC_URI = " \
 	file://add-CV180x-remoteproc-driver.patch \
 	file://dts-switch-to-single-cell-address.patch \
 	file://dts-add-remoteproc-support.patch \
+	file://dts-add-pinctrl.patch \
 	file://v5_10_y_defconfig \
 	file://multi.its \
 "

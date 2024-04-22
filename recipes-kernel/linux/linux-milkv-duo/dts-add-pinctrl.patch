@@ -1,0 +1,32 @@
+From 25a510825c11a0384791fa244c17a56ce504baf0 Mon Sep 17 00:00:00 2001
+From: GP Orcullo <kinsamanka@gmail.com>
+Date: Mon, 22 Apr 2024 01:08:33 +0000
+Subject: [PATCH] dts: add pinctrl
+
+Upstream-Status: Pending
+---
+ arch/riscv/boot/dts/cvitek/cv180x_base.dtsi | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi b/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
+index 204388cfa188..98f33e85442d 100644
+--- a/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
++++ b/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
+@@ -30,6 +30,14 @@ clk: clock-controller {
+ 		#clock-cells = <1>;
+ 	};
+ 
++	pinctrl: pinctrl@3001000 {
++		compatible = "pinctrl-single";
++		reg = <0x3001000 0x130>;
++		#pinctrl-cells = <1>;
++		pinctrl-single,register-width = <32>;
++		pinctrl-single,function-mask = <0x00000007>;
++	};
++
+ 	rst: reset-controller {
+ 		#reset-cells = <1>;
+ 		compatible = "cvitek,reset", "syscon";
+-- 
+2.44.0
+
