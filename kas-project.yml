@@ -19,6 +19,13 @@ repos:
     refspec: "2.8"
     layers:
       conf: disabled
+  meta-openembedded:
+    url: "https://github.com/openembedded/meta-openembedded"
+    refspec: "scarthgap"
+    layers:
+      meta-oe:
+      meta-python:
+      meta-networking:
   meta-riscv:
     url: "https://github.com/riscv/meta-riscv"
     refspec: c1c671a97025941f7ec4d98e586f357f126e9379
@@ -54,4 +61,10 @@ local_conf_header:
     INIT_MANAGER = "mdev-busybox"
     VIRTUAL-RUNTIME_dev_manager = "busybox-mdev"
     PREFERRED_PROVIDER_virtual/kernel = "linux-milkv-duo-v5.10.y"
-    CORE_IMAGE_EXTRA_INSTALL += " kernel-modules init-ifupdown dropbear blinky usbinit chrony"
+    CORE_IMAGE_EXTRA_INSTALL += " \
+        blinky \
+        chrony \
+        dropbear \
+        init-ifupdown \
+        kernel-modules \
+        usbinit"
