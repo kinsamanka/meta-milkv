@@ -1,0 +1,32 @@
+#!/bin/sh
+
+DAEMON="chronyd"
+PIDFILE="/var/run/$DAEMON.pid"
+
+start() {
+	start-stop-daemon -S -q -x "/usr/sbin/$DAEMON"
+	status=$?
+	return "$status"
+}
+
+stop() {
+	start-stop-daemon -K -q -x "/usr/sbin/$DAEMON"
+	status=$?
+	return "$status"
+}
+
+restart() {
+        stop
+        sleep 1
+        start
+}
+
+case "$1" in
+        start|stop|restart)
+                "$1";;
+        reload)
+                restart;;
+        *)
+                echo "Usage: $0 {start|stop|restart|reload}"
+                exit 1
+esac
