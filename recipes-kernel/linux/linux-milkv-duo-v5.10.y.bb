@@ -21,6 +21,7 @@ SRC_URI = " \
 	file://dts-switch-to-single-cell-address.patch \
 	file://dts-add-remoteproc-support.patch \
 	file://dts-add-pinctrl.patch \
+	file://dts-enable-ephy-leds.patch \
 	file://v5_10_y_defconfig \
 	file://multi.its \
 "
