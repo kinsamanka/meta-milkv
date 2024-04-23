@@ -1,0 +1,1 @@
+require zephyr-image.inc
