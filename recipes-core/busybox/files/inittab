@@ -3,6 +3,9 @@
 # Startup the system
 null::sysinit:/bin/mkdir -p /dev/pts
 null::sysinit:/bin/mount -a
+null::sysinit:/bin/mkdir /var/volatile/tmp
+null::sysinit:/bin/mkdir /var/volatile/log
+null::sysinit:/bin/mkdir /run/lock
 null::sysinit:/sbin/swapon -a
 null::sysinit:/bin/ln -sf /proc/self/fd /dev/fd
 null::sysinit:/bin/ln -sf /proc/self/fd/0 /dev/stdin
