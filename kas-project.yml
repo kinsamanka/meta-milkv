@@ -32,8 +32,11 @@ repos:
   meta-milkv:
     url: "https://github.com/kinsamanka/meta-milkv"
     refspec: "master"
-  meta-zephyros:
-    path: "meta-milkv/meta-zephyros"
+  meta-zephyr:
+    url: "https://git.yoctoproject.org/meta-zephyr"
+    refspec: "master"
+    layers:
+      meta-zephyr-core:
 bblayers_conf_header:
   standard: |
     POKY_BBLAYERS_CONF_VERSION = "7"
