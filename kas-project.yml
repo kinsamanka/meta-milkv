@@ -28,7 +28,7 @@ repos:
       meta-networking:
   meta-riscv:
     url: "https://github.com/riscv/meta-riscv"
-    refspec: c1c671a97025941f7ec4d98e586f357f126e9379
+    refspec: 3c98940f3b69b7fa99dd1f11930dbe38eea93f34
   meta-milkv:
     url: "https://github.com/kinsamanka/meta-milkv"
     refspec: "master"
