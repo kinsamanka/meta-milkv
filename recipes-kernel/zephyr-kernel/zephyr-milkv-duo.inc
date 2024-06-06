@@ -1,5 +1,7 @@
 include recipes-kernel/zephyr-kernel/zephyr-sample.inc
 
+LICENSE = "Apache-2.0"
+
 DEPENDS:append = " dtc-native"
 
 SRCREV_milkv = "master"
