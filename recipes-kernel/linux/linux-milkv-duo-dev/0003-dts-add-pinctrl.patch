@@ -1,0 +1,58 @@
+From 3fbea8b3fbed4a7251d75190c5454fc4a772b7f6 Mon Sep 17 00:00:00 2001
+From: GP Orcullo <kinsamanka@gmail.com>
+Date: Sun, 25 Aug 2024 00:47:42 +0000
+Subject: [PATCH 3/4] dts: add pinctrl
+
+Upstream-Status: Inappropriate [oe specific]
+---
+ arch/riscv/boot/dts/cvitek/cv180x_base.dtsi | 9 +++++----
+ arch/riscv/boot/dts/cvitek/cv181x_base.dtsi | 9 +++++----
+ 2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi b/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
+index 4f080925c..3fa7ceea4 100644
+--- a/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
++++ b/arch/riscv/boot/dts/cvitek/cv180x_base.dtsi
+@@ -842,12 +842,13 @@
+ 		};
+ 	};
+ 
+-#if 0
+-	cvipctrl: pinctrl@3001000 {
+-		compatible = "cvitek,pinctrl-cv182x";
++	pinctrl: pinctrl@3001000 {
++		compatible = "pinctrl-single";
+ 		reg = <0x03001000 0x1000>;
++		#pinctrl-cells = <1>;
++		pinctrl-single,register-width = <32>;
++		pinctrl-single,function-mask = <0x00000007>;
+ 	};
+-#endif
+ 
+ 	cviaudio_core {
+ 		compatible = "cvitek,audio";
+diff --git a/arch/riscv/boot/dts/cvitek/cv181x_base.dtsi b/arch/riscv/boot/dts/cvitek/cv181x_base.dtsi
+index eab3ea843..3c6004e61 100644
+--- a/arch/riscv/boot/dts/cvitek/cv181x_base.dtsi
++++ b/arch/riscv/boot/dts/cvitek/cv181x_base.dtsi
+@@ -885,12 +885,13 @@
+ 		};
+ 	};
+ 
+-#if 0
+-	cvipctrl: pinctrl@3001000 {
+-		compatible = "cvitek,pinctrl-cv182x";
++	pinctrl: pinctrl@3001000 {
++		compatible = "pinctrl-single";
+ 		reg = <0x03001000 0x1000>;
++		#pinctrl-cells = <1>;
++		pinctrl-single,register-width = <32>;
++		pinctrl-single,function-mask = <0x00000007>;
+ 	};
+-#endif
+ 
+ 	cviaudio_core {
+ 		compatible = "cvitek,audio";
+-- 
+2.34.1
+

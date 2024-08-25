@@ -1,0 +1,156 @@
+From ba0bb14890bd41c0b95bb2feab0181c088900bd7 Mon Sep 17 00:00:00 2001
+From: GP Orcullo <kinsamanka@gmail.com>
+Date: Sat, 24 Aug 2024 12:28:39 +0000
+Subject: [PATCH 4/4] dts: add gpio-leds
+
+Upstream-Status: Inappropriate [oe specific]
+---
+ .../boot/dts/cvitek/milkv_duo256m_sd.dts      | 22 ++++++++++++-
+ arch/riscv/boot/dts/cvitek/milkv_duo_sd.dts   | 28 ++++++++++++++++
+ arch/riscv/boot/dts/cvitek/milkv_duos_sd.dts  | 33 +++++++++++++++++++
+ 3 files changed, 82 insertions(+), 1 deletion(-)
+
+diff --git a/arch/riscv/boot/dts/cvitek/milkv_duo256m_sd.dts b/arch/riscv/boot/dts/cvitek/milkv_duo256m_sd.dts
+index aa0990664..c90ef12aa 100644
+--- a/arch/riscv/boot/dts/cvitek/milkv_duo256m_sd.dts
++++ b/arch/riscv/boot/dts/cvitek/milkv_duo256m_sd.dts
+@@ -4,6 +4,8 @@
+ #include "cv181x_asic_sd.dtsi"
+ #include "cv181x_default_memmap.dtsi"
+ 
++#include "dt-bindings/leds/common.h"
++
+ &mipi_rx{
+ 	snsr-reset = <&portc 17 GPIO_ACTIVE_LOW>, <&portc 17 GPIO_ACTIVE_LOW>, <&portc 17 GPIO_ACTIVE_LOW>;
+ };
+@@ -42,10 +44,28 @@
+ 	status = "okay";
+ };
+ 
++&pinctrl {
++	led_pins: led-pins {
++		pinctrl-single,pins = <0xac 0>;		/* PWR_GPIO2, PWR_GPIO_2 */
++	};
++};
++
+ / {
+ 	model = "Milk-V Duo 256M";
+ 
+ 	/delete-node/ wifi_pin;
+ 	/delete-node/ bt_pin;
+-};
+ 
++	leds {
++		compatible = "gpio-leds";
++		pinctrl-names = "default";
++		pinctrl-0 = <&led_pins>;
++
++		led0 {
++			gpios = <&porte 2 GPIO_ACTIVE_HIGH>;
++			linux,default-trigger = "heartbeat";
++			function = LED_FUNCTION_HEARTBEAT;
++			label = "blue";
++		};
++	};
++};
+diff --git a/arch/riscv/boot/dts/cvitek/milkv_duo_sd.dts b/arch/riscv/boot/dts/cvitek/milkv_duo_sd.dts
+index add8050c5..e04e7d1f5 100644
+--- a/arch/riscv/boot/dts/cvitek/milkv_duo_sd.dts
++++ b/arch/riscv/boot/dts/cvitek/milkv_duo_sd.dts
+@@ -4,6 +4,8 @@
+ #include "cv180x_asic_sd.dtsi"
+ #include "cv180x_default_memmap.dtsi"
+ 
++#include "dt-bindings/leds/common.h"
++
+ &mipi_rx{
+ 	snsr-reset = <&portc 8 GPIO_ACTIVE_LOW>, <&portc 8 GPIO_ACTIVE_LOW>, <&portc 8 GPIO_ACTIVE_LOW>;
+ };
+@@ -24,3 +26,29 @@
+        status = "okay";
+        clock-frequency = <100000>;
+ };
++
++&pinctrl {
++	led_pins: led-pins {
++		pinctrl-single,pins = <0x12c 3>;		/* PAD_AUD_AOUTR, XGPIOC_24 */
++	};
++};
++
++/ {
++	model = "Milk-V Duo";
++
++	/delete-node/ wifi_pin;
++	/delete-node/ bt_pin;
++
++	leds {
++		compatible = "gpio-leds";
++		pinctrl-names = "default";
++		pinctrl-0 = <&led_pins>;
++
++		led0 {
++			gpios = <&portc 24 GPIO_ACTIVE_HIGH>;
++			linux,default-trigger = "heartbeat";
++			function = LED_FUNCTION_HEARTBEAT;
++			label = "blue";
++		};
++	};
++};
+diff --git a/arch/riscv/boot/dts/cvitek/milkv_duos_sd.dts b/arch/riscv/boot/dts/cvitek/milkv_duos_sd.dts
+index 866ad3544..5cca962ee 100644
+--- a/arch/riscv/boot/dts/cvitek/milkv_duos_sd.dts
++++ b/arch/riscv/boot/dts/cvitek/milkv_duos_sd.dts
+@@ -4,6 +4,8 @@
+ #include "cv181x_asic_sd.dtsi"
+ #include "cv181x_default_memmap.dtsi"
+ 
++#include "dt-bindings/leds/common.h"
++
+ &mipi_rx{
+ 	snsr-reset = <&porta 2 GPIO_ACTIVE_LOW>, <&porta 2 GPIO_ACTIVE_LOW>, <&porta 2 GPIO_ACTIVE_LOW>;
+ };
+@@ -103,10 +105,41 @@
+ 	status = "okay";
+ };
+ 
++&pinctrl {
++	ephy_pins: ephy-pins {
++		pinctrl-single,pins = <
++			0x90 6				/* PWR_WAKEUP0, EPHY_LNK_LED */
++			0x98 6				/* PWR_BUTTON1, EPHY_SPD_LED */
++		>;
++	};
++
++	led_pins: led-pins {
++		pinctrl-single,pins = <0x74 3>;		/* IIC0_SDA, XGPIOA_29 */
++	};
++};
++
++&ethernet0 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&ephy_pins>;
++};
++
+ / {
+ 	model = "Milk-V Duo S";
+ 
+ 	/delete-node/ wifi_pin;
+ 	/delete-node/ bt_pin;
++
++	leds {
++		compatible = "gpio-leds";
++		pinctrl-names = "default";
++		pinctrl-0 = <&led_pins>;
++
++		led0 {
++			gpios = <&porta 29 GPIO_ACTIVE_HIGH>;
++			linux,default-trigger = "heartbeat";
++			function = LED_FUNCTION_HEARTBEAT;
++			label = "blue";
++		};
++	};
+ };
+ 
+-- 
+2.34.1
+
