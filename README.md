@@ -12,7 +12,7 @@ This is the general hardware-specific BSP overlay for Milk-V Duo board.
 This layer depends on:
 
 * URI: https://github.com/riscv/meta-riscv
-  * branch: master
+  * branch: scarthgap
   * revision: HEAD
 
 ## Quick Start
@@ -32,6 +32,11 @@ $ sudo apt install kas
 ```
 
 ### Initial build/setup
+
+Select the board to be build - one of: `milkv-duo`, `milkv-duo256m`, `milkv-duos`
+```shell
+$ export KAS_MACHINE=milkv-duo256m
+```
 
 ```shell
 $ cd $HOME
@@ -96,20 +101,20 @@ diff --git a/kas-project.yml b/kas-project.yml
 ### Using dd
 ```shell
 $ cd oe
-$ zcat build/tmp-glibc/deploy/images/milkv-duo/core-image-minimal-milkv-duo.rootfs.wic.gz | \
+$ zcat build/tmp-musl/deploy/images/milkv-duo/core-image-minimal-${KAS_MACHINE}.rootfs.wic.gz | \
   sudo dd of=/dev/sdX bs=4M iflag=fullblock oflag=direct conv=fsync status=progress
 ```
 
 ### Using bmaptool
 ```shell
 $ cd oe
-$ sudo bmaptool copy build/tmp-glibc/deploy/images/milkv-duo/core-image-minimal-milkv-duo.rootfs.wic.gz /dev/sdX
+$ sudo bmaptool copy build/tmp-glibc/deploy/images/milkv-duo/core-image-minimal-${KAS_MACHINE}.rootfs.wic.gz /dev/sdX
 ```
 
 ### Create zipped image file
 ```shell
 $ cd oe
-$ zcat build/tmp-glibc/deploy/images/milkv-duo/core-image-minimal-milkv-duo.rootfs.wic.gz | \
+$ zcat build/tmp-glibc/deploy/images/milkv-duo/core-image-minimal-${KAS_MACHINE}.rootfs.wic.gz | \
   dd of=milkv-duo.img bs=4M iflag=fullblock oflag=direct conv=fsync status=progress
 $ zip milkv-duo.img.zip milkv-duo.img
 ```
