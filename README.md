@@ -108,13 +108,13 @@ $ zcat build/tmp-musl/deploy/images/milkv-duo/core-image-minimal-${KAS_MACHINE}.
 ### Using bmaptool
 ```shell
 $ cd oe
-$ sudo bmaptool copy build/tmp-glibc/deploy/images/milkv-duo/core-image-minimal-${KAS_MACHINE}.rootfs.wic.gz /dev/sdX
+$ sudo bmaptool copy build/tmp-musl/deploy/images/milkv-duo/core-image-minimal-${KAS_MACHINE}.rootfs.wic.gz /dev/sdX
 ```
 
 ### Create zipped image file
 ```shell
 $ cd oe
-$ zcat build/tmp-glibc/deploy/images/milkv-duo/core-image-minimal-${KAS_MACHINE}.rootfs.wic.gz | \
+$ zcat build/tmp-musl/deploy/images/milkv-duo/core-image-minimal-${KAS_MACHINE}.rootfs.wic.gz | \
   dd of=milkv-duo.img bs=4M iflag=fullblock oflag=direct conv=fsync status=progress
 $ zip milkv-duo.img.zip milkv-duo.img
 ```
