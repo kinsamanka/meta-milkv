@@ -1,0 +1,4382 @@
+From b3dc7b344a070a8e1fdafa9b5b74ef6791fb63e8 Mon Sep 17 00:00:00 2001
+From: Inochi Amaoto <inochiama@outlook.com>
+Date: Fri, 2 Aug 2024 08:35:16 +0800
+Subject: [PATCH 1/8] riscv: Add pinctrl for Sophgo CV1800 series SoC.
+
+Signed-off-by: Inochi Amaoto <inochiama@outlook.com>
+
+Upstream-Status: Submitted
+---
+ .../pinctrl/sophgo,cv1800-pinctrl.yaml        | 122 +++
+ .../boot/dts/sophgo/cv1800b-milkv-duo.dts     |  49 ++
+ arch/riscv/boot/dts/sophgo/cv1800b.dtsi       |  10 +
+ arch/riscv/boot/dts/sophgo/cv1812h.dtsi       |  10 +
+ drivers/pinctrl/Kconfig                       |   1 +
+ drivers/pinctrl/Makefile                      |   1 +
+ drivers/pinctrl/pinconf-generic.c             |   2 +
+ drivers/pinctrl/sophgo/Kconfig                |  54 ++
+ drivers/pinctrl/sophgo/Makefile               |   7 +
+ drivers/pinctrl/sophgo/pinctrl-cv1800b.c      | 462 +++++++++++
+ drivers/pinctrl/sophgo/pinctrl-cv1812h.c      | 771 ++++++++++++++++++
+ drivers/pinctrl/sophgo/pinctrl-cv18xx.c       | 765 +++++++++++++++++
+ drivers/pinctrl/sophgo/pinctrl-cv18xx.h       | 155 ++++
+ drivers/pinctrl/sophgo/pinctrl-sg2000.c       | 771 ++++++++++++++++++
+ drivers/pinctrl/sophgo/pinctrl-sg2002.c       | 542 ++++++++++++
+ include/dt-bindings/pinctrl/pinctrl-cv1800b.h |  63 ++
+ include/dt-bindings/pinctrl/pinctrl-cv1812h.h | 127 +++
+ include/dt-bindings/pinctrl/pinctrl-cv18xx.h  |  19 +
+ include/dt-bindings/pinctrl/pinctrl-sg2000.h  | 127 +++
+ include/dt-bindings/pinctrl/pinctrl-sg2002.h  |  79 ++
+ include/linux/pinctrl/pinconf-generic.h       |   3 +
+ 21 files changed, 4140 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/pinctrl/sophgo,cv1800-pinctrl.yaml
+ create mode 100644 drivers/pinctrl/sophgo/Kconfig
+ create mode 100644 drivers/pinctrl/sophgo/Makefile
+ create mode 100644 drivers/pinctrl/sophgo/pinctrl-cv1800b.c
+ create mode 100644 drivers/pinctrl/sophgo/pinctrl-cv1812h.c
+ create mode 100644 drivers/pinctrl/sophgo/pinctrl-cv18xx.c
+ create mode 100644 drivers/pinctrl/sophgo/pinctrl-cv18xx.h
+ create mode 100644 drivers/pinctrl/sophgo/pinctrl-sg2000.c
+ create mode 100644 drivers/pinctrl/sophgo/pinctrl-sg2002.c
+ create mode 100644 include/dt-bindings/pinctrl/pinctrl-cv1800b.h
+ create mode 100644 include/dt-bindings/pinctrl/pinctrl-cv1812h.h
+ create mode 100644 include/dt-bindings/pinctrl/pinctrl-cv18xx.h
+ create mode 100644 include/dt-bindings/pinctrl/pinctrl-sg2000.h
+ create mode 100644 include/dt-bindings/pinctrl/pinctrl-sg2002.h
+
+diff --git a/Documentation/devicetree/bindings/pinctrl/sophgo,cv1800-pinctrl.yaml b/Documentation/devicetree/bindings/pinctrl/sophgo,cv1800-pinctrl.yaml
+new file mode 100644
+index 000000000000..1e6a55afe26a
+--- /dev/null
++++ b/Documentation/devicetree/bindings/pinctrl/sophgo,cv1800-pinctrl.yaml
+@@ -0,0 +1,122 @@
++# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/pinctrl/sophgo,cv1800-pinctrl.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: Sophgo CV1800 Pin Controller
++
++maintainers:
++  - Inochi Amaoto <inochiama@outlook.com>
++
++properties:
++  compatible:
++    enum:
++      - sophgo,cv1800b-pinctrl
++      - sophgo,cv1812h-pinctrl
++      - sophgo,sg2000-pinctrl
++      - sophgo,sg2002-pinctrl
++
++  reg:
++    items:
++      - description: pinctrl for system domain
++      - description: pinctrl for rtc domain
++
++  reg-names:
++    items:
++      - const: sys
++      - const: rtc
++
++  resets:
++    maxItems: 1
++
++patternProperties:
++  '-cfg$':
++    type: object
++    description:
++      A pinctrl node should contain at least one subnode representing the
++      pinctrl groups available on the machine.
++
++    additionalProperties: false
++
++    patternProperties:
++      '-pins$':
++        type: object
++        description: |
++          Each subnode will list the pins it needs, and how they should
++          be configured, with regard to muxer configuration, bias, input
++          enable/disable, input schmitt trigger, slew-rate, drive strength
++          and bus hold state. In addition, all pins in the same subnode
++          should have the same power domain. For configuration detail,
++          refer to https://github.com/sophgo/sophgo-doc/.
++
++        allOf:
++          - $ref: pincfg-node.yaml#
++          - $ref: pinmux-node.yaml#
++
++        properties:
++          pinmux:
++            description: |
++              The list of GPIOs and their mux settings that properties in the
++              node apply to. This should be set using the GPIOMUX or GPIOMUX2
++              macro.
++
++          bias-pull-up:
++            type: boolean
++
++          bias-pull-down:
++            type: boolean
++
++          drive-strength-microamp:
++            description: typical current when output high level.
++
++          input-schmitt-microvolt:
++            description: typical threshold for schmitt trigger.
++
++          power-source:
++            description: power supplies at X mV.
++            enum: [ 1800, 3300 ]
++
++          slew-rate:
++            description: slew rate for output buffer (0 is fast, 1 is slow)
++            enum: [ 0, 1 ]
++
++          bias-bus-hold: true
++
++        required:
++          - pinmux
++          - power-source
++
++        additionalProperties: false
++
++required:
++  - compatible
++  - reg
++  - reg-names
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/pinctrl/pinctrl-cv1800b.h>
++
++    pinctrl@3001000 {
++        compatible = "sophgo,cv1800b-pinctrl";
++        reg = <0x03001000 0x1000>,
++              <0x05027000 0x1000>;
++        reg-names = "sys", "rtc";
++
++        uart0_cfg: uart0-cfg {
++            uart0-pins {
++                pinmux = <PINMUX(PIN_UART0_TX, 0)>,
++                         <PINMUX(PIN_UART0_RX, 0)>;
++                bias-pull-up;
++                drive-strength-microamp = <10800>;
++                input-schmitt-microvolt = <0>;
++                power-source = <3300>;
++                slew-rate = <0>;
++            };
++        };
++    };
++
++...
+diff --git a/arch/riscv/boot/dts/sophgo/cv1800b-milkv-duo.dts b/arch/riscv/boot/dts/sophgo/cv1800b-milkv-duo.dts
+index da9df5ef04e7..6d53e4c52561 100644
+--- a/arch/riscv/boot/dts/sophgo/cv1800b-milkv-duo.dts
++++ b/arch/riscv/boot/dts/sophgo/cv1800b-milkv-duo.dts
+@@ -45,7 +45,54 @@ &osc {
+ 	clock-frequency = <25000000>;
+ };
+ 
++&pinctrl {
++	uart0_cfg: uart0-cfg {
++		uart0-pins {
++			pinmux = <PINMUX(PIN_UART0_TX, 0)>,
++				 <PINMUX(PIN_UART0_RX, 0)>;
++			bias-pull-up;
++			drive-strength-microamp = <10800>;
++			power-source = <3300>;
++		};
++	};
++
++	sdhci0_cfg: sdhci0-cfg {
++		sdhci0-clk-pins {
++			pinmux = <PINMUX(PIN_SD0_CLK, 0)>;
++			bias-pull-up;
++			drive-strength-microamp = <16100>;
++			power-source = <3300>;
++		};
++
++		sdhci0-cmd-pins {
++			pinmux = <PINMUX(PIN_SD0_CMD, 0)>;
++			bias-pull-up;
++			drive-strength-microamp = <10800>;
++			power-source = <3300>;
++		};
++
++		sdhci0-data-pins {
++			pinmux = <PINMUX(PIN_SD0_D0, 0)>,
++				 <PINMUX(PIN_SD0_D1, 0)>,
++				 <PINMUX(PIN_SD0_D2, 0)>,
++				 <PINMUX(PIN_SD0_D3, 0)>;
++			bias-pull-up;
++			drive-strength-microamp = <10800>;
++			power-source = <3300>;
++		};
++
++		sdhci0-cd-pins {
++			pinmux = <PINMUX(PIN_SD0_CD, 0)>;
++			bias-pull-up;
++			drive-strength-microamp = <10800>;
++			power-source = <3300>;
++		};
++	};
++};
++
+ &sdhci0 {
++	pinctrl-0 = <&sdhci0_cfg>;
++	pinctrl-names = "default";
+ 	status = "okay";
+ 	bus-width = <4>;
+ 	disable-wp;
+@@ -59,5 +106,7 @@ &emac0 {
+ };
+ 
+ &uart0 {
++	pinctrl-0 = <&uart0_cfg>;
++	pinctrl-names = "default";
+ 	status = "okay";
+ };
+diff --git a/arch/riscv/boot/dts/sophgo/cv1800b.dtsi b/arch/riscv/boot/dts/sophgo/cv1800b.dtsi
+index 165e9e320a8c..d989d3d80a5a 100644
+--- a/arch/riscv/boot/dts/sophgo/cv1800b.dtsi
++++ b/arch/riscv/boot/dts/sophgo/cv1800b.dtsi
+@@ -3,10 +3,20 @@
+  * Copyright (C) 2023 Jisheng Zhang <jszhang@kernel.org>
+  */
+ 
++#include <dt-bindings/pinctrl/pinctrl-cv1800b.h>
+ #include "cv18xx.dtsi"
+ 
+ / {
+ 	compatible = "sophgo,cv1800b";
++
++	soc {
++		pinctrl: pinctrl@3008000 {
++			compatible = "sophgo,cv1800b-pinctrl";
++			reg = <0x03001000 0x1000>,
++			      <0x05027000 0x1000>;
++			reg-names = "sys", "rtc";
++		};
++	};
+ };
+ 
+ &plic {
+diff --git a/arch/riscv/boot/dts/sophgo/cv1812h.dtsi b/arch/riscv/boot/dts/sophgo/cv1812h.dtsi
+index 3e7a942f5c1a..999c5fbd6021 100644
+--- a/arch/riscv/boot/dts/sophgo/cv1812h.dtsi
++++ b/arch/riscv/boot/dts/sophgo/cv1812h.dtsi
+@@ -4,6 +4,7 @@
+  */
+ 
+ #include <dt-bindings/interrupt-controller/irq.h>
++#include <dt-bindings/pinctrl/pinctrl-cv1812h.h>
+ #include "cv18xx.dtsi"
+ 
+ / {
+@@ -13,6 +14,15 @@ memory@80000000 {
+ 		device_type = "memory";
+ 		reg = <0x80000000 0x10000000>;
+ 	};
++
++	soc {
++		pinctrl: pinctrl@3008000 {
++			compatible = "sophgo,cv1812h-pinctrl";
++			reg = <0x03001000 0x1000>,
++			      <0x05027000 0x1000>;
++			reg-names = "sys", "rtc";
++		};
++	};
+ };
+ 
+ &plic {
+diff --git a/drivers/pinctrl/Kconfig b/drivers/pinctrl/Kconfig
+index 8163a5983166..45d81dabbdd7 100644
+--- a/drivers/pinctrl/Kconfig
++++ b/drivers/pinctrl/Kconfig
+@@ -554,6 +554,7 @@ source "drivers/pinctrl/qcom/Kconfig"
+ source "drivers/pinctrl/realtek/Kconfig"
+ source "drivers/pinctrl/renesas/Kconfig"
+ source "drivers/pinctrl/samsung/Kconfig"
++source "drivers/pinctrl/sophgo/Kconfig"
+ source "drivers/pinctrl/spear/Kconfig"
+ source "drivers/pinctrl/sprd/Kconfig"
+ source "drivers/pinctrl/starfive/Kconfig"
+diff --git a/drivers/pinctrl/Makefile b/drivers/pinctrl/Makefile
+index 1071f301cc70..01c50c6c6b82 100644
+--- a/drivers/pinctrl/Makefile
++++ b/drivers/pinctrl/Makefile
+@@ -71,6 +71,7 @@ obj-y				+= qcom/
+ obj-$(CONFIG_ARCH_REALTEK)      += realtek/
+ obj-$(CONFIG_PINCTRL_RENESAS)	+= renesas/
+ obj-$(CONFIG_PINCTRL_SAMSUNG)	+= samsung/
++obj-y				+= sophgo/
+ obj-$(CONFIG_PINCTRL_SPEAR)	+= spear/
+ obj-y				+= sprd/
+ obj-$(CONFIG_SOC_STARFIVE)	+= starfive/
+diff --git a/drivers/pinctrl/pinconf-generic.c b/drivers/pinctrl/pinconf-generic.c
+index cada5d18ffae..0b0fcc1473ad 100644
+--- a/drivers/pinctrl/pinconf-generic.c
++++ b/drivers/pinctrl/pinconf-generic.c
+@@ -44,6 +44,7 @@ static const struct pin_config_item conf_items[] = {
+ 	PCONFDUMP(PIN_CONFIG_INPUT_DEBOUNCE, "input debounce", "usec", true),
+ 	PCONFDUMP(PIN_CONFIG_INPUT_ENABLE, "input enabled", NULL, false),
+ 	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT, "input schmitt trigger", NULL, false),
++	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT_UV, "input schmitt threshold", "uV", true),
+ 	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT_ENABLE, "input schmitt enabled", NULL, false),
+ 	PCONFDUMP(PIN_CONFIG_MODE_LOW_POWER, "pin low power", "mode", true),
+ 	PCONFDUMP(PIN_CONFIG_OUTPUT_ENABLE, "output enabled", NULL, false),
+@@ -177,6 +178,7 @@ static const struct pinconf_generic_params dt_params[] = {
+ 	{ "input-schmitt", PIN_CONFIG_INPUT_SCHMITT, 0 },
+ 	{ "input-schmitt-disable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 0 },
+ 	{ "input-schmitt-enable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 1 },
++	{ "input-schmitt-microvolts", PIN_CONFIG_INPUT_SCHMITT_UV, 0 },
+ 	{ "low-power-disable", PIN_CONFIG_MODE_LOW_POWER, 0 },
+ 	{ "low-power-enable", PIN_CONFIG_MODE_LOW_POWER, 1 },
+ 	{ "output-disable", PIN_CONFIG_OUTPUT_ENABLE, 0 },
+diff --git a/drivers/pinctrl/sophgo/Kconfig b/drivers/pinctrl/sophgo/Kconfig
+new file mode 100644
+index 000000000000..b14792ee46fc
+--- /dev/null
++++ b/drivers/pinctrl/sophgo/Kconfig
+@@ -0,0 +1,54 @@
++# SPDX-License-Identifier: GPL-2.0-only
++#
++# Sophgo SoC PINCTRL drivers
++#
++
++config PINCTRL_SOPHGO_CV18XX
++	bool
++	select GENERIC_PINCTRL_GROUPS
++	select GENERIC_PINMUX_FUNCTIONS
++	select GENERIC_PINCONF
++
++config PINCTRL_SOPHGO_CV1800B
++	tristate "Sophgo CV1800B SoC Pinctrl driver"
++	depends on ARCH_SOPHGO || COMPILE_TEST
++	depends on OF
++	select PINCTRL_SOPHGO_CV18XX
++	help
++	  Say Y to select the pinctrl driver for CV1800B SoC.
++	  This pin controller allows selecting the mux function for
++	  each pin. This driver can also be built as a module called
++	  pinctrl-cv1800b.
++
++config PINCTRL_SOPHGO_CV1812H
++	tristate "Sophgo CV1812H SoC Pinctrl driver"
++	depends on ARCH_SOPHGO || COMPILE_TEST
++	depends on OF
++	select PINCTRL_SOPHGO_CV18XX
++	help
++	  Say Y to select the pinctrl driver for CV1812H SoC.
++	  This pin controller allows selecting the mux function for
++	  each pin. This driver can also be built as a module called
++	  pinctrl-cv1812h.
++
++config PINCTRL_SOPHGO_SG2000
++	tristate "Sophgo SG2000 SoC Pinctrl driver"
++	depends on ARCH_SOPHGO || COMPILE_TEST
++	depends on OF
++	select PINCTRL_SOPHGO_CV18XX
++	help
++	  Say Y to select the pinctrl driver for SG2000 SoC.
++	  This pin controller allows selecting the mux function for
++	  each pin. This driver can also be built as a module called
++	  pinctrl-sg2000.
++
++config PINCTRL_SOPHGO_SG2002
++	tristate "Sophgo SG2000 SoC Pinctrl driver"
++	depends on ARCH_SOPHGO || COMPILE_TEST
++	depends on OF
++	select PINCTRL_SOPHGO_CV18XX
++	help
++	  Say Y to select the pinctrl driver for SG2002 SoC.
++	  This pin controller allows selecting the mux function for
++	  each pin. This driver can also be built as a module called
++	  pinctrl-sg2002.
+diff --git a/drivers/pinctrl/sophgo/Makefile b/drivers/pinctrl/sophgo/Makefile
+new file mode 100644
+index 000000000000..4113a5c9191b
+--- /dev/null
++++ b/drivers/pinctrl/sophgo/Makefile
+@@ -0,0 +1,7 @@
++# SPDX-License-Identifier: GPL-2.0
++
++obj-$(CONFIG_PINCTRL_SOPHGO_CV18XX)	+= pinctrl-cv18xx.o
++obj-$(CONFIG_PINCTRL_SOPHGO_CV1800B)	+= pinctrl-cv1800b.o
++obj-$(CONFIG_PINCTRL_SOPHGO_CV1812H)	+= pinctrl-cv1812h.o
++obj-$(CONFIG_PINCTRL_SOPHGO_SG2000)	+= pinctrl-sg2000.o
++obj-$(CONFIG_PINCTRL_SOPHGO_SG2002)	+= pinctrl-sg2002.o
+diff --git a/drivers/pinctrl/sophgo/pinctrl-cv1800b.c b/drivers/pinctrl/sophgo/pinctrl-cv1800b.c
+new file mode 100644
+index 000000000000..3322906689e7
+--- /dev/null
++++ b/drivers/pinctrl/sophgo/pinctrl-cv1800b.c
+@@ -0,0 +1,462 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Sophgo CV1800B SoC pinctrl driver.
++ *
++ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
++ *
++ * This file is generated from vendor pinout definition.
++ */
++
++#include <linux/module.h>
++#include <linux/platform_device.h>
++#include <linux/of.h>
++
++#include <linux/pinctrl/pinctrl.h>
++#include <linux/pinctrl/pinmux.h>
++
++#include <dt-bindings/pinctrl/pinctrl-cv1800b.h>
++
++#include "pinctrl-cv18xx.h"
++
++enum CV1800B_POWER_DOMAIN {
++	VDD18A_AUD		= 0,
++	VDD18A_USB_PLL_ETH_CSI	= 1,
++	VDD33A_ETH_USB_SD1	= 2,
++	VDDIO_RTC		= 3,
++	VDDIO_SD0_SPI		= 4
++};
++
++static const char *const cv1800b_power_domain_desc[] = {
++	[VDD18A_AUD]			= "VDD18A_AUD",
++	[VDD18A_USB_PLL_ETH_CSI]	= "VDD18A_USB_PLL_ETH_CSI",
++	[VDD33A_ETH_USB_SD1]		= "VDD33A_ETH_USB_SD1",
++	[VDDIO_RTC]			= "VDDIO_RTC",
++	[VDDIO_SD0_SPI]			= "VDDIO_SD0_SPI",
++};
++
++static int cv1800b_get_pull_up(struct cv1800_pin *pin, const u32 *psmap)
++{
++	u32 pstate = psmap[pin->power_domain];
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++
++	if (type == IO_TYPE_1V8_ONLY)
++		return 79000;
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8)
++			return 60000;
++		if (pstate == PIN_POWER_STATE_3V3)
++			return 60000;
++
++		return -EINVAL;
++	}
++
++	return -ENOTSUPP;
++}
++
++static int cv1800b_get_pull_down(struct cv1800_pin *pin, const u32 *psmap)
++{
++	u32 pstate = psmap[pin->power_domain];
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++
++	if (type == IO_TYPE_1V8_ONLY)
++		return 87000;
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8)
++			return 61000;
++		if (pstate == PIN_POWER_STATE_3V3)
++			return 62000;
++
++		return -EINVAL;
++	}
++
++	return -ENOTSUPP;
++}
++
++static const u32 cv1800b_1v8_oc_map[] = {
++	12800,
++	25300,
++	37400,
++	49000
++};
++
++static const u32 cv1800b_18od33_1v8_oc_map[] = {
++	7800,
++	11700,
++	15500,
++	19200,
++	23000,
++	26600,
++	30200,
++	33700
++};
++
++static const u32 cv1800b_18od33_3v3_oc_map[] = {
++	5500,
++	8200,
++	10800,
++	13400,
++	16100,
++	18700,
++	21200,
++	23700
++};
++
++static const u32 cv1800b_eth_oc_map[] = {
++	15700,
++	17800
++};
++
++static int cv1800b_get_oc_map(struct cv1800_pin *pin, const u32 *psmap,
++			      const u32 **map)
++{
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++	u32 pstate = psmap[pin->power_domain];
++
++	if (type == IO_TYPE_1V8_ONLY) {
++		*map = cv1800b_1v8_oc_map;
++		return ARRAY_SIZE(cv1800b_1v8_oc_map);
++	}
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8) {
++			*map = cv1800b_18od33_1v8_oc_map;
++			return ARRAY_SIZE(cv1800b_18od33_1v8_oc_map);
++		} else if (pstate == PIN_POWER_STATE_3V3) {
++			*map = cv1800b_18od33_3v3_oc_map;
++			return ARRAY_SIZE(cv1800b_18od33_3v3_oc_map);
++		}
++	}
++
++	if (type == IO_TYPE_ETH) {
++		*map = cv1800b_eth_oc_map;
++		return ARRAY_SIZE(cv1800b_eth_oc_map);
++	}
++
++	return -ENOTSUPP;
++}
++
++static const u32 cv1800b_1v8_schmitt_map[] = {
++	0,
++	970000,
++	1040000
++};
++
++static const u32 cv1800b_18od33_1v8_schmitt_map[] = {
++	0,
++	1070000
++};
++
++static const u32 cv1800b_18od33_3v3_schmitt_map[] = {
++	0,
++	1100000
++};
++
++static int cv1800b_get_schmitt_map(struct cv1800_pin *pin, const u32 *psmap,
++				   const u32 **map)
++{
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++	u32 pstate = psmap[pin->power_domain];
++
++	if (type == IO_TYPE_1V8_ONLY) {
++		*map = cv1800b_1v8_schmitt_map;
++		return ARRAY_SIZE(cv1800b_1v8_schmitt_map);
++	}
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8) {
++			*map = cv1800b_18od33_1v8_schmitt_map;
++			return ARRAY_SIZE(cv1800b_18od33_1v8_schmitt_map);
++		} else if (pstate == PIN_POWER_STATE_3V3) {
++			*map = cv1800b_18od33_3v3_schmitt_map;
++			return ARRAY_SIZE(cv1800b_18od33_3v3_schmitt_map);
++		}
++	}
++
++	return -ENOTSUPP;
++}
++
++static const struct cv1800_vddio_cfg_ops cv1800b_vddio_cfg_ops = {
++	.get_pull_up		= cv1800b_get_pull_up,
++	.get_pull_down		= cv1800b_get_pull_down,
++	.get_oc_map		= cv1800b_get_oc_map,
++	.get_schmitt_map		= cv1800b_get_schmitt_map,
++};
++
++static const struct pinctrl_pin_desc cv1800b_pins[] = {
++	PINCTRL_PIN(PIN_AUD_AOUTR,	"AUD_AOUTR"),
++	PINCTRL_PIN(PIN_SD0_CLK,	"SD0_CLK"),
++	PINCTRL_PIN(PIN_SD0_CMD,	"SD0_CMD"),
++	PINCTRL_PIN(PIN_SD0_D0,		"SD0_D0"),
++	PINCTRL_PIN(PIN_SD0_D1,		"SD0_D1"),
++	PINCTRL_PIN(PIN_SD0_D2,		"SD0_D2"),
++	PINCTRL_PIN(PIN_SD0_D3,		"SD0_D3"),
++	PINCTRL_PIN(PIN_SD0_CD,		"SD0_CD"),
++	PINCTRL_PIN(PIN_SD0_PWR_EN,	"SD0_PWR_EN"),
++	PINCTRL_PIN(PIN_SPK_EN,		"SPK_EN"),
++	PINCTRL_PIN(PIN_UART0_TX,	"UART0_TX"),
++	PINCTRL_PIN(PIN_UART0_RX,	"UART0_RX"),
++	PINCTRL_PIN(PIN_SPINOR_HOLD_X,	"SPINOR_HOLD_X"),
++	PINCTRL_PIN(PIN_SPINOR_SCK,	"SPINOR_SCK"),
++	PINCTRL_PIN(PIN_SPINOR_MOSI,	"SPINOR_MOSI"),
++	PINCTRL_PIN(PIN_SPINOR_WP_X,	"SPINOR_WP_X"),
++	PINCTRL_PIN(PIN_SPINOR_MISO,	"SPINOR_MISO"),
++	PINCTRL_PIN(PIN_SPINOR_CS_X,	"SPINOR_CS_X"),
++	PINCTRL_PIN(PIN_IIC0_SCL,	"IIC0_SCL"),
++	PINCTRL_PIN(PIN_IIC0_SDA,	"IIC0_SDA"),
++	PINCTRL_PIN(PIN_AUX0,		"AUX0"),
++	PINCTRL_PIN(PIN_PWR_VBAT_DET,	"PWR_VBAT_DET"),
++	PINCTRL_PIN(PIN_PWR_SEQ2,	"PWR_SEQ2"),
++	PINCTRL_PIN(PIN_XTAL_XIN,	"XTAL_XIN"),
++	PINCTRL_PIN(PIN_SD1_GPIO0,	"SD1_GPIO0"),
++	PINCTRL_PIN(PIN_SD1_GPIO1,	"SD1_GPIO1"),
++	PINCTRL_PIN(PIN_SD1_D3,		"SD1_D3"),
++	PINCTRL_PIN(PIN_SD1_D2,		"SD1_D2"),
++	PINCTRL_PIN(PIN_SD1_D1,		"SD1_D1"),
++	PINCTRL_PIN(PIN_SD1_D0,		"SD1_D0"),
++	PINCTRL_PIN(PIN_SD1_CMD,	"SD1_CMD"),
++	PINCTRL_PIN(PIN_SD1_CLK,	"SD1_CLK"),
++	PINCTRL_PIN(PIN_ADC1,		"ADC1"),
++	PINCTRL_PIN(PIN_USB_VBUS_DET,	"USB_VBUS_DET"),
++	PINCTRL_PIN(PIN_ETH_TXP,	"ETH_TXP"),
++	PINCTRL_PIN(PIN_ETH_TXM,	"ETH_TXM"),
++	PINCTRL_PIN(PIN_ETH_RXP,	"ETH_RXP"),
++	PINCTRL_PIN(PIN_ETH_RXM,	"ETH_RXM"),
++	PINCTRL_PIN(PIN_MIPIRX4N,	"MIPIRX4N"),
++	PINCTRL_PIN(PIN_MIPIRX4P,	"MIPIRX4P"),
++	PINCTRL_PIN(PIN_MIPIRX3N,	"MIPIRX3N"),
++	PINCTRL_PIN(PIN_MIPIRX3P,	"MIPIRX3P"),
++	PINCTRL_PIN(PIN_MIPIRX2N,	"MIPIRX2N"),
++	PINCTRL_PIN(PIN_MIPIRX2P,	"MIPIRX2P"),
++	PINCTRL_PIN(PIN_MIPIRX1N,	"MIPIRX1N"),
++	PINCTRL_PIN(PIN_MIPIRX1P,	"MIPIRX1P"),
++	PINCTRL_PIN(PIN_MIPIRX0N,	"MIPIRX0N"),
++	PINCTRL_PIN(PIN_MIPIRX0P,	"MIPIRX0P"),
++	PINCTRL_PIN(PIN_AUD_AINL_MIC,	"AUD_AINL_MIC"),
++};
++
++static const struct cv1800_pin cv1800b_pin_data[ARRAY_SIZE(cv1800b_pins)] = {
++	CV1800_FUNC_PIN(PIN_AUD_AOUTR, VDD18A_AUD,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x12c, 6),
++	CV1800_GENERAL_PIN(PIN_SD0_CLK, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x000, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa00),
++	CV1800_GENERAL_PIN(PIN_SD0_CMD, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x004, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa04),
++	CV1800_GENERAL_PIN(PIN_SD0_D0, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x008, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa08),
++	CV1800_GENERAL_PIN(PIN_SD0_D1, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x00c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa0c),
++	CV1800_GENERAL_PIN(PIN_SD0_D2, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x010, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa10),
++	CV1800_GENERAL_PIN(PIN_SD0_D3, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x014, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa14),
++	CV1800_GENERAL_PIN(PIN_SD0_CD, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x018, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x900),
++	CV1800_GENERAL_PIN(PIN_SD0_PWR_EN, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x01c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x904),
++	CV1800_GENERAL_PIN(PIN_SPK_EN, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x020, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x908),
++	CV1800_GENERAL_PIN(PIN_UART0_TX, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x024, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x90c),
++	CV1800_GENERAL_PIN(PIN_UART0_RX, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x028, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x910),
++	CV1800_GENERAL_PIN(PIN_SPINOR_HOLD_X, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x02c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x914),
++	CV1800_GENERAL_PIN(PIN_SPINOR_SCK, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x030, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x918),
++	CV1800_GENERAL_PIN(PIN_SPINOR_MOSI, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x034, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x91c),
++	CV1800_GENERAL_PIN(PIN_SPINOR_WP_X, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x038, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x920),
++	CV1800_GENERAL_PIN(PIN_SPINOR_MISO, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x03c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x924),
++	CV1800_GENERAL_PIN(PIN_SPINOR_CS_X, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x040, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x928),
++	CV1800_GENERAL_PIN(PIN_IIC0_SCL, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x04c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x934),
++	CV1800_GENERAL_PIN(PIN_IIC0_SDA, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x050, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x938),
++	CV1800_GENERAL_PIN(PIN_AUX0, VDDIO_SD0_SPI,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x054, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x93c),
++	CV1800_GENERAL_PIN(PIN_PWR_VBAT_DET, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x05c, 0,
++			   CV1800_PINCONF_AREA_RTC, 0x004),
++	CV1800_GENERAL_PIN(PIN_PWR_SEQ2, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x068, 3,
++			   CV1800_PINCONF_AREA_RTC, 0x010),
++	CV1800_GENERAL_PIN(PIN_XTAL_XIN, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x074, 0,
++			   CV1800_PINCONF_AREA_RTC, 0x020),
++	CV1800_GENERAL_PIN(PIN_SD1_GPIO0, VDD33A_ETH_USB_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x088, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x034),
++	CV1800_GENERAL_PIN(PIN_SD1_GPIO1, VDD33A_ETH_USB_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x084, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x030),
++	CV1800_GENERAL_PIN(PIN_SD1_D3, VDD33A_ETH_USB_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x08c, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x038),
++	CV1800_GENERAL_PIN(PIN_SD1_D2, VDD33A_ETH_USB_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x090, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x03c),
++	CV1800_GENERAL_PIN(PIN_SD1_D1, VDD33A_ETH_USB_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x094, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x040),
++	CV1800_GENERAL_PIN(PIN_SD1_D0, VDD33A_ETH_USB_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x098, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x044),
++	CV1800_GENERAL_PIN(PIN_SD1_CMD, VDD33A_ETH_USB_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x09c, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x048),
++	CV1800_GENERAL_PIN(PIN_SD1_CLK, VDD33A_ETH_USB_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0a0, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x04c),
++	CV1800_GENERAL_PIN(PIN_ADC1, VDD18A_USB_PLL_ETH_CSI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0a8, 6,
++			   CV1800_PINCONF_AREA_SYS, 0x804),
++	CV1800_GENERAL_PIN(PIN_USB_VBUS_DET, VDD18A_USB_PLL_ETH_CSI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0ac, 6,
++			   CV1800_PINCONF_AREA_SYS, 0x808),
++	CV1800_FUNC_PIN(PIN_ETH_TXP, VDD18A_USB_PLL_ETH_CSI,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x0c0, 7),
++	CV1800_FUNC_PIN(PIN_ETH_TXM, VDD18A_USB_PLL_ETH_CSI,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x0c4, 7),
++	CV1800_FUNC_PIN(PIN_ETH_RXP, VDD18A_USB_PLL_ETH_CSI,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x0c8, 7),
++	CV1800_FUNC_PIN(PIN_ETH_RXM, VDD18A_USB_PLL_ETH_CSI,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x0cc, 7),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX4N, VDD18A_USB_PLL_ETH_CSI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x0d4, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x0bc, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc04),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX4P, VDD18A_USB_PLL_ETH_CSI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x0d8, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x0b8, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc08),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX3N, VDD18A_USB_PLL_ETH_CSI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x0dc, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x0b0, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc0c),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX3P, VDD18A_USB_PLL_ETH_CSI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x0e0, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x0b4, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc10),
++	CV1800_GENERAL_PIN(PIN_MIPIRX2N, VDD18A_USB_PLL_ETH_CSI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0e4, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc14),
++	CV1800_GENERAL_PIN(PIN_MIPIRX2P, VDD18A_USB_PLL_ETH_CSI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0e8, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc18),
++	CV1800_GENERAL_PIN(PIN_MIPIRX1N, VDD18A_USB_PLL_ETH_CSI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0ec, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc1c),
++	CV1800_GENERAL_PIN(PIN_MIPIRX1P, VDD18A_USB_PLL_ETH_CSI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0f0, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc20),
++	CV1800_GENERAL_PIN(PIN_MIPIRX0N, VDD18A_USB_PLL_ETH_CSI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0f4, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc24),
++	CV1800_GENERAL_PIN(PIN_MIPIRX0P, VDD18A_USB_PLL_ETH_CSI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0f8, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc28),
++	CV1800_FUNC_PIN(PIN_AUD_AINL_MIC, VDD18A_AUD,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x120, 5),
++};
++
++static const struct cv1800_pinctrl_data cv1800b_pindata = {
++	.pins		= cv1800b_pins,
++	.pindata	= cv1800b_pin_data,
++	.pdnames	= cv1800b_power_domain_desc,
++	.vddio_ops	= &cv1800b_vddio_cfg_ops,
++	.npins		= ARRAY_SIZE(cv1800b_pins),
++	.npd		= ARRAY_SIZE(cv1800b_power_domain_desc),
++};
++
++static const struct of_device_id cv1800b_pinctrl_ids[] = {
++	{ .compatible = "sophgo,cv1800b-pinctrl", .data = &cv1800b_pindata },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, cv1800b_pinctrl_ids);
++
++static struct platform_driver cv1800b_pinctrl_driver = {
++	.probe	= cv1800_pinctrl_probe,
++	.driver	= {
++		.name			= "cv1800b-pinctrl",
++		.suppress_bind_attrs	= true,
++		.of_match_table		= cv1800b_pinctrl_ids,
++	},
++};
++module_platform_driver(cv1800b_pinctrl_driver);
++
++MODULE_DESCRIPTION("Pinctrl driver for the CV1800B series SoC");
++MODULE_LICENSE("GPL");
+diff --git a/drivers/pinctrl/sophgo/pinctrl-cv1812h.c b/drivers/pinctrl/sophgo/pinctrl-cv1812h.c
+new file mode 100644
+index 000000000000..5632290b46fa
+--- /dev/null
++++ b/drivers/pinctrl/sophgo/pinctrl-cv1812h.c
+@@ -0,0 +1,771 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Sophgo CV1812H SoC pinctrl driver.
++ *
++ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
++ *
++ * This file is generated from vendor pinout definition.
++ */
++
++#include <linux/module.h>
++#include <linux/platform_device.h>
++#include <linux/of.h>
++
++#include <linux/pinctrl/pinctrl.h>
++#include <linux/pinctrl/pinmux.h>
++
++#include <dt-bindings/pinctrl/pinctrl-cv1812h.h>
++
++#include "pinctrl-cv18xx.h"
++
++enum CV1812H_POWER_DOMAIN {
++	VDD18A_EPHY		= 0,
++	VDD18A_MIPI		= 1,
++	VDDIO18_1		= 2,
++	VDDIO_EMMC		= 3,
++	VDDIO_RTC		= 4,
++	VDDIO_SD0		= 5,
++	VDDIO_SD1		= 6,
++	VDDIO_VIVO		= 7
++};
++
++static const char *const cv1812h_power_domain_desc[] = {
++	[VDD18A_EPHY]		= "VDD18A_EPHY",
++	[VDD18A_MIPI]		= "VDD18A_MIPI",
++	[VDDIO18_1]		= "VDDIO18_1",
++	[VDDIO_EMMC]		= "VDDIO_EMMC",
++	[VDDIO_RTC]		= "VDDIO_RTC",
++	[VDDIO_SD0]		= "VDDIO_SD0",
++	[VDDIO_SD1]		= "VDDIO_SD1",
++	[VDDIO_VIVO]		= "VDDIO_VIVO",
++};
++
++static int cv1812h_get_pull_up(struct cv1800_pin *pin, const u32 *psmap)
++{
++	u32 pstate = psmap[pin->power_domain];
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++
++	if (type == IO_TYPE_1V8_ONLY)
++		return 79000;
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8)
++			return 60000;
++		if (pstate == PIN_POWER_STATE_3V3)
++			return 60000;
++
++		return -EINVAL;
++	}
++
++	return -ENOTSUPP;
++}
++
++static int cv1812h_get_pull_down(struct cv1800_pin *pin, const u32 *psmap)
++{
++	u32 pstate = psmap[pin->power_domain];
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++
++	if (type == IO_TYPE_1V8_ONLY)
++		return 87000;
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8)
++			return 61000;
++		if (pstate == PIN_POWER_STATE_3V3)
++			return 62000;
++
++		return -EINVAL;
++	}
++
++	return -ENOTSUPP;
++}
++
++static const u32 cv1812h_1v8_oc_map[] = {
++	12800,
++	25300,
++	37400,
++	49000
++};
++
++static const u32 cv1812h_18od33_1v8_oc_map[] = {
++	7800,
++	11700,
++	15500,
++	19200,
++	23000,
++	26600,
++	30200,
++	33700
++};
++
++static const u32 cv1812h_18od33_3v3_oc_map[] = {
++	5500,
++	8200,
++	10800,
++	13400,
++	16100,
++	18700,
++	21200,
++	23700
++};
++
++static const u32 cv1812h_eth_oc_map[] = {
++	15700,
++	17800
++};
++
++static int cv1812h_get_oc_map(struct cv1800_pin *pin, const u32 *psmap,
++			      const u32 **map)
++{
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++	u32 pstate = psmap[pin->power_domain];
++
++	if (type == IO_TYPE_1V8_ONLY) {
++		*map = cv1812h_1v8_oc_map;
++		return ARRAY_SIZE(cv1812h_1v8_oc_map);
++	}
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8) {
++			*map = cv1812h_18od33_1v8_oc_map;
++			return ARRAY_SIZE(cv1812h_18od33_1v8_oc_map);
++		} else if (pstate == PIN_POWER_STATE_3V3) {
++			*map = cv1812h_18od33_3v3_oc_map;
++			return ARRAY_SIZE(cv1812h_18od33_3v3_oc_map);
++		}
++	}
++
++	if (type == IO_TYPE_ETH) {
++		*map = cv1812h_eth_oc_map;
++		return ARRAY_SIZE(cv1812h_eth_oc_map);
++	}
++
++	return -ENOTSUPP;
++}
++
++static const u32 cv1812h_1v8_schmitt_map[] = {
++	0,
++	970000,
++	1040000
++};
++
++static const u32 cv1812h_18od33_1v8_schmitt_map[] = {
++	0,
++	1070000
++};
++
++static const u32 cv1812h_18od33_3v3_schmitt_map[] = {
++	0,
++	1100000
++};
++
++static int cv1812h_get_schmitt_map(struct cv1800_pin *pin, const u32 *psmap,
++				   const u32 **map)
++{
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++	u32 pstate = psmap[pin->power_domain];
++
++	if (type == IO_TYPE_1V8_ONLY) {
++		*map = cv1812h_1v8_schmitt_map;
++		return ARRAY_SIZE(cv1812h_1v8_schmitt_map);
++	}
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8) {
++			*map = cv1812h_18od33_1v8_schmitt_map;
++			return ARRAY_SIZE(cv1812h_18od33_1v8_schmitt_map);
++		} else if (pstate == PIN_POWER_STATE_3V3) {
++			*map = cv1812h_18od33_3v3_schmitt_map;
++			return ARRAY_SIZE(cv1812h_18od33_3v3_schmitt_map);
++		}
++	}
++
++	return -ENOTSUPP;
++}
++
++static const struct cv1800_vddio_cfg_ops cv1812h_vddio_cfg_ops = {
++	.get_pull_up		= cv1812h_get_pull_up,
++	.get_pull_down		= cv1812h_get_pull_down,
++	.get_oc_map		= cv1812h_get_oc_map,
++	.get_schmitt_map		= cv1812h_get_schmitt_map,
++};
++
++static const struct pinctrl_pin_desc cv1812h_pins[] = {
++	PINCTRL_PIN(PIN_MIPI_TXM4,	"MIPI_TXM4"),
++	PINCTRL_PIN(PIN_MIPIRX0N,	"MIPIRX0N"),
++	PINCTRL_PIN(PIN_MIPIRX3P,	"MIPIRX3P"),
++	PINCTRL_PIN(PIN_MIPIRX4P,	"MIPIRX4P"),
++	PINCTRL_PIN(PIN_VIVO_D2,	"VIVO_D2"),
++	PINCTRL_PIN(PIN_VIVO_D3,	"VIVO_D3"),
++	PINCTRL_PIN(PIN_VIVO_D10,	"VIVO_D10"),
++	PINCTRL_PIN(PIN_USB_VBUS_DET,	"USB_VBUS_DET"),
++	PINCTRL_PIN(PIN_MIPI_TXP3,	"MIPI_TXP3"),
++	PINCTRL_PIN(PIN_MIPI_TXM3,	"MIPI_TXM3"),
++	PINCTRL_PIN(PIN_MIPI_TXP4,	"MIPI_TXP4"),
++	PINCTRL_PIN(PIN_MIPIRX0P,	"MIPIRX0P"),
++	PINCTRL_PIN(PIN_MIPIRX1N,	"MIPIRX1N"),
++	PINCTRL_PIN(PIN_MIPIRX2N,	"MIPIRX2N"),
++	PINCTRL_PIN(PIN_MIPIRX4N,	"MIPIRX4N"),
++	PINCTRL_PIN(PIN_MIPIRX5N,	"MIPIRX5N"),
++	PINCTRL_PIN(PIN_VIVO_D1,	"VIVO_D1"),
++	PINCTRL_PIN(PIN_VIVO_D5,	"VIVO_D5"),
++	PINCTRL_PIN(PIN_VIVO_D7,	"VIVO_D7"),
++	PINCTRL_PIN(PIN_VIVO_D9,	"VIVO_D9"),
++	PINCTRL_PIN(PIN_USB_ID,		"USB_ID"),
++	PINCTRL_PIN(PIN_ETH_RXM,	"ETH_RXM"),
++	PINCTRL_PIN(PIN_MIPI_TXP2,	"MIPI_TXP2"),
++	PINCTRL_PIN(PIN_MIPI_TXM2,	"MIPI_TXM2"),
++	PINCTRL_PIN(PIN_CAM_PD0,	"CAM_PD0"),
++	PINCTRL_PIN(PIN_CAM_MCLK0,	"CAM_MCLK0"),
++	PINCTRL_PIN(PIN_MIPIRX1P,	"MIPIRX1P"),
++	PINCTRL_PIN(PIN_MIPIRX2P,	"MIPIRX2P"),
++	PINCTRL_PIN(PIN_MIPIRX3N,	"MIPIRX3N"),
++	PINCTRL_PIN(PIN_MIPIRX5P,	"MIPIRX5P"),
++	PINCTRL_PIN(PIN_VIVO_CLK,	"VIVO_CLK"),
++	PINCTRL_PIN(PIN_VIVO_D6,	"VIVO_D6"),
++	PINCTRL_PIN(PIN_VIVO_D8,	"VIVO_D8"),
++	PINCTRL_PIN(PIN_USB_VBUS_EN,	"USB_VBUS_EN"),
++	PINCTRL_PIN(PIN_ETH_RXP,	"ETH_RXP"),
++	PINCTRL_PIN(PIN_GPIO_RTX,	"GPIO_RTX"),
++	PINCTRL_PIN(PIN_MIPI_TXP1,	"MIPI_TXP1"),
++	PINCTRL_PIN(PIN_MIPI_TXM1,	"MIPI_TXM1"),
++	PINCTRL_PIN(PIN_CAM_MCLK1,	"CAM_MCLK1"),
++	PINCTRL_PIN(PIN_IIC3_SCL,	"IIC3_SCL"),
++	PINCTRL_PIN(PIN_VIVO_D4,	"VIVO_D4"),
++	PINCTRL_PIN(PIN_ETH_TXM,	"ETH_TXM"),
++	PINCTRL_PIN(PIN_ETH_TXP,	"ETH_TXP"),
++	PINCTRL_PIN(PIN_MIPI_TXP0,	"MIPI_TXP0"),
++	PINCTRL_PIN(PIN_MIPI_TXM0,	"MIPI_TXM0"),
++	PINCTRL_PIN(PIN_CAM_PD1,	"CAM_PD1"),
++	PINCTRL_PIN(PIN_CAM_RST0,	"CAM_RST0"),
++	PINCTRL_PIN(PIN_VIVO_D0,	"VIVO_D0"),
++	PINCTRL_PIN(PIN_ADC1,		"ADC1"),
++	PINCTRL_PIN(PIN_ADC2,		"ADC2"),
++	PINCTRL_PIN(PIN_ADC3,		"ADC3"),
++	PINCTRL_PIN(PIN_AUD_AOUTL,	"AUD_AOUTL"),
++	PINCTRL_PIN(PIN_IIC3_SDA,	"IIC3_SDA"),
++	PINCTRL_PIN(PIN_SD1_D2,		"SD1_D2"),
++	PINCTRL_PIN(PIN_AUD_AOUTR,	"AUD_AOUTR"),
++	PINCTRL_PIN(PIN_SD1_D3,		"SD1_D3"),
++	PINCTRL_PIN(PIN_SD1_CLK,	"SD1_CLK"),
++	PINCTRL_PIN(PIN_SD1_CMD,	"SD1_CMD"),
++	PINCTRL_PIN(PIN_AUD_AINL_MIC,	"AUD_AINL_MIC"),
++	PINCTRL_PIN(PIN_RSTN,		"RSTN"),
++	PINCTRL_PIN(PIN_PWM0_BUCK,	"PWM0_BUCK"),
++	PINCTRL_PIN(PIN_SD1_D1,		"SD1_D1"),
++	PINCTRL_PIN(PIN_SD1_D0,		"SD1_D0"),
++	PINCTRL_PIN(PIN_AUD_AINR_MIC,	"AUD_AINR_MIC"),
++	PINCTRL_PIN(PIN_IIC2_SCL,	"IIC2_SCL"),
++	PINCTRL_PIN(PIN_IIC2_SDA,	"IIC2_SDA"),
++	PINCTRL_PIN(PIN_SD0_CD,		"SD0_CD"),
++	PINCTRL_PIN(PIN_SD0_D1,		"SD0_D1"),
++	PINCTRL_PIN(PIN_UART2_RX,	"UART2_RX"),
++	PINCTRL_PIN(PIN_UART2_CTS,	"UART2_CTS"),
++	PINCTRL_PIN(PIN_UART2_TX,	"UART2_TX"),
++	PINCTRL_PIN(PIN_SD0_CLK,	"SD0_CLK"),
++	PINCTRL_PIN(PIN_SD0_D0,		"SD0_D0"),
++	PINCTRL_PIN(PIN_SD0_CMD,	"SD0_CMD"),
++	PINCTRL_PIN(PIN_CLK32K,		"CLK32K"),
++	PINCTRL_PIN(PIN_UART2_RTS,	"UART2_RTS"),
++	PINCTRL_PIN(PIN_SD0_D3,		"SD0_D3"),
++	PINCTRL_PIN(PIN_SD0_D2,		"SD0_D2"),
++	PINCTRL_PIN(PIN_UART0_RX,	"UART0_RX"),
++	PINCTRL_PIN(PIN_UART0_TX,	"UART0_TX"),
++	PINCTRL_PIN(PIN_JTAG_CPU_TRST,	"JTAG_CPU_TRST"),
++	PINCTRL_PIN(PIN_PWR_ON,		"PWR_ON"),
++	PINCTRL_PIN(PIN_PWR_GPIO2,	"PWR_GPIO2"),
++	PINCTRL_PIN(PIN_PWR_GPIO0,	"PWR_GPIO0"),
++	PINCTRL_PIN(PIN_CLK25M,		"CLK25M"),
++	PINCTRL_PIN(PIN_SD0_PWR_EN,	"SD0_PWR_EN"),
++	PINCTRL_PIN(PIN_SPK_EN,		"SPK_EN"),
++	PINCTRL_PIN(PIN_JTAG_CPU_TCK,	"JTAG_CPU_TCK"),
++	PINCTRL_PIN(PIN_JTAG_CPU_TMS,	"JTAG_CPU_TMS"),
++	PINCTRL_PIN(PIN_PWR_WAKEUP1,	"PWR_WAKEUP1"),
++	PINCTRL_PIN(PIN_PWR_WAKEUP0,	"PWR_WAKEUP0"),
++	PINCTRL_PIN(PIN_PWR_GPIO1,	"PWR_GPIO1"),
++	PINCTRL_PIN(PIN_EMMC_DAT3,	"EMMC_DAT3"),
++	PINCTRL_PIN(PIN_EMMC_DAT0,	"EMMC_DAT0"),
++	PINCTRL_PIN(PIN_EMMC_DAT2,	"EMMC_DAT2"),
++	PINCTRL_PIN(PIN_EMMC_RSTN,	"EMMC_RSTN"),
++	PINCTRL_PIN(PIN_AUX0,		"AUX0"),
++	PINCTRL_PIN(PIN_IIC0_SDA,	"IIC0_SDA"),
++	PINCTRL_PIN(PIN_PWR_SEQ3,	"PWR_SEQ3"),
++	PINCTRL_PIN(PIN_PWR_VBAT_DET,	"PWR_VBAT_DET"),
++	PINCTRL_PIN(PIN_PWR_SEQ1,	"PWR_SEQ1"),
++	PINCTRL_PIN(PIN_PWR_BUTTON1,	"PWR_BUTTON1"),
++	PINCTRL_PIN(PIN_EMMC_DAT1,	"EMMC_DAT1"),
++	PINCTRL_PIN(PIN_EMMC_CMD,	"EMMC_CMD"),
++	PINCTRL_PIN(PIN_EMMC_CLK,	"EMMC_CLK"),
++	PINCTRL_PIN(PIN_IIC0_SCL,	"IIC0_SCL"),
++	PINCTRL_PIN(PIN_GPIO_ZQ,	"GPIO_ZQ"),
++	PINCTRL_PIN(PIN_PWR_RSTN,	"PWR_RSTN"),
++	PINCTRL_PIN(PIN_PWR_SEQ2,	"PWR_SEQ2"),
++	PINCTRL_PIN(PIN_XTAL_XIN,	"XTAL_XIN"),
++};
++
++static const struct cv1800_pin cv1812h_pin_data[ARRAY_SIZE(cv1812h_pins)] = {
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM4, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x194, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc60),
++	CV1800_GENERAL_PIN(PIN_MIPIRX0N, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x18c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc58),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX3P, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x178, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x118, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc44),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX4P, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x170, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x11c, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc3c),
++	CV1800_GENERAL_PIN(PIN_VIVO_D2, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x154, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc20),
++	CV1800_GENERAL_PIN(PIN_VIVO_D3, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x150, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc1c),
++	CV1800_GENERAL_PIN(PIN_VIVO_D10, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x134, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc00),
++	CV1800_GENERAL_PIN(PIN_USB_VBUS_DET, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x108, 5,
++			   CV1800_PINCONF_AREA_SYS, 0x820),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP3, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1a0, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc6c),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM3, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x19c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc68),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP4, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x198, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc64),
++	CV1800_GENERAL_PIN(PIN_MIPIRX0P, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x190, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc5c),
++	CV1800_GENERAL_PIN(PIN_MIPIRX1N, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x184, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc50),
++	CV1800_GENERAL_PIN(PIN_MIPIRX2N, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x17c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc48),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX4N, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x16c, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x120, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc38),
++	CV1800_GENERAL_PIN(PIN_MIPIRX5N, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x164, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc30),
++	CV1800_GENERAL_PIN(PIN_VIVO_D1, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x158, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc24),
++	CV1800_GENERAL_PIN(PIN_VIVO_D5, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x148, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc14),
++	CV1800_GENERAL_PIN(PIN_VIVO_D7, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x140, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc0c),
++	CV1800_GENERAL_PIN(PIN_VIVO_D9, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x138, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc04),
++	CV1800_GENERAL_PIN(PIN_USB_ID, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0fc, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x814),
++	CV1800_FUNC_PIN(PIN_ETH_RXM, VDD18A_EPHY,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x130, 7),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP2, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1a8, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc74),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM2, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1a4, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc70),
++	CV1800_GENERAL_PIN(PIN_CAM_PD0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x004, 4,
++			   CV1800_PINCONF_AREA_SYS, 0xb04),
++	CV1800_GENERAL_PIN(PIN_CAM_MCLK0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x000, 3,
++			   CV1800_PINCONF_AREA_SYS, 0xb00),
++	CV1800_GENERAL_PIN(PIN_MIPIRX1P, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x188, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc54),
++	CV1800_GENERAL_PIN(PIN_MIPIRX2P, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x180, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc4c),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX3N, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x174, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x114, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc40),
++	CV1800_GENERAL_PIN(PIN_MIPIRX5P, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x168, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc34),
++	CV1800_GENERAL_PIN(PIN_VIVO_CLK, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x160, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc2c),
++	CV1800_GENERAL_PIN(PIN_VIVO_D6, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x144, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc10),
++	CV1800_GENERAL_PIN(PIN_VIVO_D8, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x13c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc08),
++	CV1800_GENERAL_PIN(PIN_USB_VBUS_EN, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x100, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x818),
++	CV1800_FUNC_PIN(PIN_ETH_RXP, VDD18A_EPHY,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x12c, 7),
++	CV1800_GENERAL_PIN(PIN_GPIO_RTX, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1cc, 5,
++			   CV1800_PINCONF_AREA_SYS, 0xc8c),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP1, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1b0, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc7c),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM1, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1ac, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc78),
++	CV1800_GENERAL_PIN(PIN_CAM_MCLK1, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x00c, 4,
++			   CV1800_PINCONF_AREA_SYS, 0xb0c),
++	CV1800_GENERAL_PIN(PIN_IIC3_SCL, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x014, 3,
++			   CV1800_PINCONF_AREA_SYS, 0xb14),
++	CV1800_GENERAL_PIN(PIN_VIVO_D4, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x14c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc18),
++	CV1800_FUNC_PIN(PIN_ETH_TXM, VDD18A_EPHY,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x128, 7),
++	CV1800_FUNC_PIN(PIN_ETH_TXP, VDD18A_EPHY,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x124, 7),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1b8, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc84),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1b4, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc80),
++	CV1800_GENERAL_PIN(PIN_CAM_PD1, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x010, 6,
++			   CV1800_PINCONF_AREA_SYS, 0xb10),
++	CV1800_GENERAL_PIN(PIN_CAM_RST0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x008, 6,
++			   CV1800_PINCONF_AREA_SYS, 0xb08),
++	CV1800_GENERAL_PIN(PIN_VIVO_D0, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x15c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc28),
++	CV1800_GENERAL_PIN(PIN_ADC1, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0f8, 4,
++			   CV1800_PINCONF_AREA_SYS, 0x810),
++	CV1800_GENERAL_PIN(PIN_ADC2, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0f4, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x80c),
++	CV1800_GENERAL_PIN(PIN_ADC3, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0f0, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x808),
++	CV1800_FUNC_PIN(PIN_AUD_AOUTL, VDD18A_MIPI,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x1c4, 5),
++	CV1800_GENERAL_PIN(PIN_IIC3_SDA, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x018, 3,
++			   CV1800_PINCONF_AREA_SYS, 0xb18),
++	CV1800_GENERAL_PIN(PIN_SD1_D2, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0d4, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x05c),
++	CV1800_FUNC_PIN(PIN_AUD_AOUTR, VDD18A_MIPI,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x1c8, 6),
++	CV1800_GENERAL_PIN(PIN_SD1_D3, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0d0, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x058),
++	CV1800_GENERAL_PIN(PIN_SD1_CLK, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0e4, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x06c),
++	CV1800_GENERAL_PIN(PIN_SD1_CMD, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0e0, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x068),
++	CV1800_FUNC_PIN(PIN_AUD_AINL_MIC, VDD18A_MIPI,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x1bc, 5),
++	CV1800_GENERAL_PIN(PIN_RSTN, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0e8, 0,
++			   CV1800_PINCONF_AREA_SYS, 0x800),
++	CV1800_GENERAL_PIN(PIN_PWM0_BUCK, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0ec, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x804),
++	CV1800_GENERAL_PIN(PIN_SD1_D1, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0d8, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x060),
++	CV1800_GENERAL_PIN(PIN_SD1_D0, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0dc, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x064),
++	CV1800_FUNC_PIN(PIN_AUD_AINR_MIC, VDD18A_MIPI,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x1c0, 6),
++	CV1800_GENERAL_PIN(PIN_IIC2_SCL, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0b8, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x040),
++	CV1800_GENERAL_PIN(PIN_IIC2_SDA, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0bc, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x044),
++	CV1800_GENERAL_PIN(PIN_SD0_CD, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x034, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x900),
++	CV1800_GENERAL_PIN(PIN_SD0_D1, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x028, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa0c),
++	CV1800_GENERAL_PIN(PIN_UART2_RX, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0c8, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x050),
++	CV1800_GENERAL_PIN(PIN_UART2_CTS, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0cc, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x054),
++	CV1800_GENERAL_PIN(PIN_UART2_TX, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0c0, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x048),
++	CV1800_GENERAL_PIN(PIN_SD0_CLK, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x01c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa00),
++	CV1800_GENERAL_PIN(PIN_SD0_D0, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x024, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa08),
++	CV1800_GENERAL_PIN(PIN_SD0_CMD, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x020, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa04),
++	CV1800_GENERAL_PIN(PIN_CLK32K, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0b0, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x038),
++	CV1800_GENERAL_PIN(PIN_UART2_RTS, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0c4, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x04c),
++	CV1800_GENERAL_PIN(PIN_SD0_D3, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x030, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa14),
++	CV1800_GENERAL_PIN(PIN_SD0_D2, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x02c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa10),
++	CV1800_GENERAL_PIN(PIN_UART0_RX, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x044, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x910),
++	CV1800_GENERAL_PIN(PIN_UART0_TX, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x040, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x90c),
++	CV1800_GENERAL_PIN(PIN_JTAG_CPU_TRST, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x06c, 6,
++			   CV1800_PINCONF_AREA_SYS, 0x938),
++	CV1800_GENERAL_PIN(PIN_PWR_ON, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x09c, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x024),
++	CV1800_GENERAL_PIN(PIN_PWR_GPIO2, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0ac, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x034),
++	CV1800_GENERAL_PIN(PIN_PWR_GPIO0, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0a4, 4,
++			   CV1800_PINCONF_AREA_RTC, 0x02c),
++	CV1800_GENERAL_PIN(PIN_CLK25M, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0b4, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x03c),
++	CV1800_GENERAL_PIN(PIN_SD0_PWR_EN, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x038, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x904),
++	CV1800_GENERAL_PIN(PIN_SPK_EN, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x03c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x908),
++	CV1800_GENERAL_PIN(PIN_JTAG_CPU_TCK, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x068, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x934),
++	CV1800_GENERAL_PIN(PIN_JTAG_CPU_TMS, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x064, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x930),
++	CV1800_GENERAL_PIN(PIN_PWR_WAKEUP1, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x094, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x01c),
++	CV1800_GENERAL_PIN(PIN_PWR_WAKEUP0, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x090, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x018),
++	CV1800_GENERAL_PIN(PIN_PWR_GPIO1, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0a8, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x030),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT3, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x058, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x924),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT0, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x054, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x920),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT2, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x04c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x918),
++	CV1800_GENERAL_PIN(PIN_EMMC_RSTN, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x048, 4,
++			   CV1800_PINCONF_AREA_SYS, 0x914),
++	CV1800_GENERAL_PIN(PIN_AUX0, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x078, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x944),
++	CV1800_GENERAL_PIN(PIN_IIC0_SDA, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x074, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x940),
++	CV1800_GENERAL_PIN(PIN_PWR_SEQ3, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x08c, 3,
++			   CV1800_PINCONF_AREA_RTC, 0x010),
++	CV1800_GENERAL_PIN(PIN_PWR_VBAT_DET, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x07c, 0,
++			   CV1800_PINCONF_AREA_RTC, 0x000),
++	CV1800_GENERAL_PIN(PIN_PWR_SEQ1, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x084, 3,
++			   CV1800_PINCONF_AREA_RTC, 0x008),
++	CV1800_GENERAL_PIN(PIN_PWR_BUTTON1, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x098, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x020),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT1, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x060, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x92c),
++	CV1800_GENERAL_PIN(PIN_EMMC_CMD, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x05c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x928),
++	CV1800_GENERAL_PIN(PIN_EMMC_CLK, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x050, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x91c),
++	CV1800_GENERAL_PIN(PIN_IIC0_SCL, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x070, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x93c),
++	CV1800_GENERAL_PIN(PIN_GPIO_ZQ, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1d0, 4,
++			   CV1800_PINCONF_AREA_RTC, 0x0e0),
++	CV1800_GENERAL_PIN(PIN_PWR_RSTN, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x080, 0,
++			   CV1800_PINCONF_AREA_RTC, 0x004),
++	CV1800_GENERAL_PIN(PIN_PWR_SEQ2, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x088, 3,
++			   CV1800_PINCONF_AREA_RTC, 0x00c),
++	CV1800_GENERAL_PIN(PIN_XTAL_XIN, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0a0, 0,
++			   CV1800_PINCONF_AREA_RTC, 0x028),
++};
++
++static const struct cv1800_pinctrl_data cv1812h_pindata = {
++	.pins		= cv1812h_pins,
++	.pindata	= cv1812h_pin_data,
++	.pdnames	= cv1812h_power_domain_desc,
++	.vddio_ops	= &cv1812h_vddio_cfg_ops,
++	.npins		= ARRAY_SIZE(cv1812h_pins),
++	.npd		= ARRAY_SIZE(cv1812h_power_domain_desc),
++};
++
++static const struct of_device_id cv1812h_pinctrl_ids[] = {
++	{ .compatible = "sophgo,cv1812h-pinctrl", .data = &cv1812h_pindata },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, cv1812h_pinctrl_ids);
++
++static struct platform_driver cv1812h_pinctrl_driver = {
++	.probe	= cv1800_pinctrl_probe,
++	.driver	= {
++		.name			= "cv1812h-pinctrl",
++		.suppress_bind_attrs	= true,
++		.of_match_table		= cv1812h_pinctrl_ids,
++	},
++};
++module_platform_driver(cv1812h_pinctrl_driver);
++
++MODULE_DESCRIPTION("Pinctrl driver for the CV1812H series SoC");
++MODULE_LICENSE("GPL");
+diff --git a/drivers/pinctrl/sophgo/pinctrl-cv18xx.c b/drivers/pinctrl/sophgo/pinctrl-cv18xx.c
+new file mode 100644
+index 000000000000..e63cfcc37377
+--- /dev/null
++++ b/drivers/pinctrl/sophgo/pinctrl-cv18xx.c
+@@ -0,0 +1,765 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Sophgo CV18XX SoCs pinctrl driver.
++ *
++ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
++ *
++ */
++
++#include <linux/bitfield.h>
++#include <linux/export.h>
++#include <linux/io.h>
++#include <linux/of.h>
++#include <linux/platform_device.h>
++#include <linux/bsearch.h>
++#include <linux/seq_file.h>
++#include <linux/spinlock.h>
++
++#include <linux/pinctrl/consumer.h>
++#include <linux/pinctrl/machine.h>
++#include <linux/pinctrl/pinconf-generic.h>
++#include <linux/pinctrl/pinconf.h>
++#include <linux/pinctrl/pinctrl.h>
++#include <linux/pinctrl/pinmux.h>
++
++#include <dt-bindings/pinctrl/pinctrl-cv18xx.h>
++
++#include "../core.h"
++#include "../pinctrl-utils.h"
++#include "../pinconf.h"
++#include "../pinmux.h"
++#include "pinctrl-cv18xx.h"
++
++struct cv1800_pinctrl {
++	struct device				*dev;
++	struct pinctrl_dev			*pctl_dev;
++	const struct cv1800_pinctrl_data	*data;
++	struct pinctrl_desc			pdesc;
++	u32					*power_cfg;
++
++	struct mutex				mutex;
++	raw_spinlock_t				lock;
++
++	void __iomem				*regs[2];
++};
++
++struct cv1800_pin_mux_config {
++	struct cv1800_pin	*pin;
++	u32			config;
++};
++
++static unsigned int cv1800_dt_get_pin(u32 value)
++{
++	return value & GENMASK(15, 0);
++}
++
++static unsigned int cv1800_dt_get_pin_mux(u32 value)
++{
++	return (value >> 16) & GENMASK(7, 0);
++}
++
++static unsigned int cv1800_dt_get_pin_mux2(u32 value)
++{
++	return (value >> 24) & GENMASK(7, 0);
++}
++
++#define cv1800_pinctrl_get_component_addr(pctrl, _comp)		\
++	((pctrl)->regs[(_comp)->area] + (_comp)->offset)
++
++static int cv1800_cmp_pin(const void *key, const void *pivot)
++{
++	const struct cv1800_pin *pin = pivot;
++	int pin_id = (long)key;
++	int pivid = pin->pin;
++
++	return pin_id - pivid;
++}
++
++static int cv1800_set_power_cfg(struct cv1800_pinctrl *pctrl,
++				u8 domain, u32 cfg)
++{
++	if (domain >= pctrl->data->npd)
++		return -ENOTSUPP;
++
++	if (pctrl->power_cfg[domain] && pctrl->power_cfg[domain] != cfg)
++		return -EINVAL;
++
++	pctrl->power_cfg[domain] = cfg;
++
++	return 0;
++}
++
++static int cv1800_get_power_cfg(struct cv1800_pinctrl *pctrl,
++				u8 domain)
++{
++	return pctrl->power_cfg[domain];
++}
++
++static struct cv1800_pin *cv1800_get_pin(struct cv1800_pinctrl *pctrl,
++					 unsigned long pin)
++{
++	return bsearch((void *)pin, pctrl->data->pindata, pctrl->data->npins,
++		       sizeof(struct cv1800_pin), cv1800_cmp_pin);
++}
++
++#define PIN_BGA_ID_OFFSET		8
++#define PIN_BGA_ID_MASK			0xff
++
++static const char *const io_type_desc[] = {
++	"1V8",
++	"18OD33",
++	"AUDIO",
++	"ETH"
++};
++
++static const char *cv1800_get_power_cfg_desc(struct cv1800_pinctrl *pctrl,
++					     u8 domain)
++{
++	return pctrl->data->pdnames[domain];
++}
++
++static void cv1800_pctrl_dbg_show(struct pinctrl_dev *pctldev,
++				  struct seq_file *seq, unsigned int pin_id)
++{
++	struct cv1800_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
++	struct cv1800_pin *pin = cv1800_get_pin(pctrl, pin_id);
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++	u32 value;
++	void *reg;
++
++	if (pin->pin >> PIN_BGA_ID_OFFSET)
++		seq_printf(seq, "pos: %c%u ",
++			   'A' + (pin->pin >> PIN_BGA_ID_OFFSET) - 1,
++			   pin->pin & PIN_BGA_ID_MASK);
++	else
++		seq_printf(seq, "pos: %u ", pin->pin);
++
++	seq_printf(seq, "power-domain: %s ",
++		   cv1800_get_power_cfg_desc(pctrl, pin->power_domain));
++	seq_printf(seq, "type: %s ", io_type_desc[type]);
++
++	reg = cv1800_pinctrl_get_component_addr(pctrl, &pin->mux);
++	value = readl(reg);
++	seq_printf(seq, "mux: 0x%08x ", value);
++
++	if (pin->flags & CV1800_PIN_HAVE_MUX2) {
++		reg = cv1800_pinctrl_get_component_addr(pctrl, &pin->mux2);
++		value = readl(reg);
++		seq_printf(seq, "mux2: 0x%08x ", value);
++	}
++
++	if (type == IO_TYPE_1V8_ONLY || type == IO_TYPE_1V8_OR_3V3) {
++		reg = cv1800_pinctrl_get_component_addr(pctrl, &pin->conf);
++		value = readl(reg);
++		seq_printf(seq, "conf: 0x%08x ", value);
++	}
++}
++
++static int cv1800_verify_pinmux_config(const struct cv1800_pin_mux_config *config)
++{
++	unsigned int mux = cv1800_dt_get_pin_mux(config->config);
++	unsigned int mux2 = cv1800_dt_get_pin_mux2(config->config);
++
++	if (mux > config->pin->mux.max)
++		return -EINVAL;
++
++	if (config->pin->flags & CV1800_PIN_HAVE_MUX2) {
++		if (mux != config->pin->mux2.pfunc)
++			return -EINVAL;
++
++		if (mux2 > config->pin->mux2.max)
++			return -EINVAL;
++	} else {
++		if (mux2 != PIN_MUX_INVALD)
++			return -ENOTSUPP;
++	}
++
++	return 0;
++}
++
++static int cv1800_verify_pin_group(const struct cv1800_pin_mux_config *mux,
++				   unsigned long npins)
++{
++	enum cv1800_pin_io_type type;
++	u8 power_domain;
++	int i;
++
++	if (npins == 1)
++		return 0;
++
++	type = cv1800_pin_io_type(mux[0].pin);
++	power_domain = mux[0].pin->power_domain;
++
++	for (i = 0; i < npins; i++) {
++		if (type != cv1800_pin_io_type(mux[i].pin) ||
++		    power_domain != mux[i].pin->power_domain)
++			return -ENOTSUPP;
++	}
++
++	return 0;
++}
++
++static int cv1800_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
++				       struct device_node *np,
++				       struct pinctrl_map **maps,
++				       unsigned int *num_maps)
++{
++	struct cv1800_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
++	struct device *dev = pctrl->dev;
++	struct device_node *child;
++	struct pinctrl_map *map;
++	const char **grpnames;
++	const char *grpname;
++	int ngroups = 0;
++	int nmaps = 0;
++	int ret;
++
++	for_each_available_child_of_node(np, child)
++		ngroups += 1;
++
++	grpnames = devm_kcalloc(dev, ngroups, sizeof(*grpnames), GFP_KERNEL);
++	if (!grpnames)
++		return -ENOMEM;
++
++	map = devm_kcalloc(dev, ngroups * 2, sizeof(*map), GFP_KERNEL);
++	if (!map)
++		return -ENOMEM;
++
++	ngroups = 0;
++	mutex_lock(&pctrl->mutex);
++	for_each_available_child_of_node(np, child) {
++		int npins = of_property_count_u32_elems(child, "pinmux");
++		unsigned int *pins;
++		struct cv1800_pin_mux_config *pinmuxs;
++		u32 config, power;
++		int i;
++
++		if (npins < 1) {
++			dev_err(dev, "invalid pinctrl group %pOFn.%pOFn\n",
++				np, child);
++			ret = -EINVAL;
++			goto dt_failed;
++		}
++
++		grpname = devm_kasprintf(dev, GFP_KERNEL, "%pOFn.%pOFn",
++					 np, child);
++		if (!grpname) {
++			ret = -ENOMEM;
++			goto dt_failed;
++		}
++
++		grpnames[ngroups++] = grpname;
++
++		pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
++		if (!pins) {
++			ret = -ENOMEM;
++			goto dt_failed;
++		}
++
++		pinmuxs = devm_kcalloc(dev, npins, sizeof(*pinmuxs), GFP_KERNEL);
++		if (!pinmuxs) {
++			ret = -ENOMEM;
++			goto dt_failed;
++		}
++
++		for (i = 0; i < npins; i++) {
++			ret = of_property_read_u32_index(child, "pinmux",
++							 i, &config);
++			if (ret)
++				goto dt_failed;
++
++			pins[i] = cv1800_dt_get_pin(config);
++			pinmuxs[i].config = config;
++			pinmuxs[i].pin = cv1800_get_pin(pctrl, pins[i]);
++
++			if (!pinmuxs[i].pin) {
++				dev_err(dev, "failed to get pin %d\n", pins[i]);
++				ret = -ENODEV;
++				goto dt_failed;
++			}
++
++			ret = cv1800_verify_pinmux_config(&pinmuxs[i]);
++			if (ret) {
++				dev_err(dev, "group %s pin %d is invalid\n",
++					grpname, i);
++				goto dt_failed;
++			}
++		}
++
++		ret = cv1800_verify_pin_group(pinmuxs, npins);
++		if (ret) {
++			dev_err(dev, "group %s is invalid\n", grpname);
++			goto dt_failed;
++		}
++
++		ret = of_property_read_u32(child, "power-source", &power);
++		if (ret)
++			goto dt_failed;
++
++		if (!(power == PIN_POWER_STATE_3V3 || power == PIN_POWER_STATE_1V8)) {
++			dev_err(dev, "group %s have unsupported power: %u\n",
++				grpname, power);
++			ret = -ENOTSUPP;
++			goto dt_failed;
++		}
++
++		ret = cv1800_set_power_cfg(pctrl, pinmuxs[0].pin->power_domain,
++					   power);
++		if (ret)
++			goto dt_failed;
++
++		map[nmaps].type = PIN_MAP_TYPE_MUX_GROUP;
++		map[nmaps].data.mux.function = np->name;
++		map[nmaps].data.mux.group = grpname;
++		nmaps += 1;
++
++		ret = pinconf_generic_parse_dt_config(child, pctldev,
++						      &map[nmaps].data.configs.configs,
++						      &map[nmaps].data.configs.num_configs);
++		if (ret) {
++			dev_err(dev, "failed to parse pin config of group %s: %d\n",
++				grpname, ret);
++			goto dt_failed;
++		}
++
++		ret = pinctrl_generic_add_group(pctldev, grpname,
++						pins, npins, pinmuxs);
++		if (ret < 0) {
++			dev_err(dev, "failed to add group %s: %d\n", grpname, ret);
++			goto dt_failed;
++		}
++
++		/* don't create a map if there are no pinconf settings */
++		if (map[nmaps].data.configs.num_configs == 0)
++			continue;
++
++		map[nmaps].type = PIN_MAP_TYPE_CONFIGS_GROUP;
++		map[nmaps].data.configs.group_or_pin = grpname;
++		nmaps += 1;
++	}
++
++	ret = pinmux_generic_add_function(pctldev, np->name,
++					  grpnames, ngroups, NULL);
++	if (ret < 0) {
++		dev_err(dev, "error adding function %s: %d\n", np->name, ret);
++		goto function_failed;
++	}
++
++	*maps = map;
++	*num_maps = nmaps;
++	mutex_unlock(&pctrl->mutex);
++
++	return 0;
++
++dt_failed:
++	of_node_put(child);
++function_failed:
++	pinctrl_utils_free_map(pctldev, map, nmaps);
++	mutex_unlock(&pctrl->mutex);
++	return ret;
++}
++
++static const struct pinctrl_ops cv1800_pctrl_ops = {
++	.get_groups_count	= pinctrl_generic_get_group_count,
++	.get_group_name		= pinctrl_generic_get_group_name,
++	.get_group_pins		= pinctrl_generic_get_group_pins,
++	.pin_dbg_show		= cv1800_pctrl_dbg_show,
++	.dt_node_to_map		= cv1800_pctrl_dt_node_to_map,
++	.dt_free_map		= pinctrl_utils_free_map,
++};
++
++static int cv1800_pmx_set_mux(struct pinctrl_dev *pctldev,
++			      unsigned int fsel, unsigned int gsel)
++{
++	struct cv1800_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
++	const struct group_desc *group;
++	const struct cv1800_pin_mux_config *configs;
++	unsigned int i;
++
++	group = pinctrl_generic_get_group(pctldev, gsel);
++	if (!group)
++		return -EINVAL;
++
++	configs = group->data;
++
++	for (i = 0; i < group->grp.npins; i++) {
++		const struct cv1800_pin *pin = configs[i].pin;
++		u32 value = configs[i].config;
++		void __iomem *reg_mux;
++		void __iomem *reg_mux2;
++		unsigned long flags;
++		u32 mux;
++		u32 mux2;
++
++		reg_mux = cv1800_pinctrl_get_component_addr(pctrl, &pin->mux);
++		reg_mux2 = cv1800_pinctrl_get_component_addr(pctrl, &pin->mux2);
++		mux = cv1800_dt_get_pin_mux(value);
++		mux2 = cv1800_dt_get_pin_mux2(value);
++
++		raw_spin_lock_irqsave(&pctrl->lock, flags);
++		writel_relaxed(mux, reg_mux);
++		if (mux2 != PIN_MUX_INVALD)
++			writel_relaxed(mux2, reg_mux2);
++		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
++	}
++
++	return 0;
++}
++
++static const struct pinmux_ops cv1800_pmx_ops = {
++	.get_functions_count	= pinmux_generic_get_function_count,
++	.get_function_name	= pinmux_generic_get_function_name,
++	.get_function_groups	= pinmux_generic_get_function_groups,
++	.set_mux		= cv1800_pmx_set_mux,
++	.strict			= true,
++};
++
++#define PIN_IO_PULLUP		BIT(2)
++#define PIN_IO_PULLDOWN		BIT(3)
++#define PIN_IO_DRIVE		GENMASK(7, 5)
++#define PIN_IO_SCHMITT		GENMASK(9, 8)
++#define PIN_IO_BUS_HOLD		BIT(10)
++#define PIN_IO_OUT_FAST_SLEW	BIT(11)
++
++static u32 cv1800_pull_down_typical_resistor(struct cv1800_pinctrl *pctrl,
++					     struct cv1800_pin *pin)
++{
++	return pctrl->data->vddio_ops->get_pull_down(pin, pctrl->power_cfg);
++}
++
++static u32 cv1800_pull_up_typical_resistor(struct cv1800_pinctrl *pctrl,
++					   struct cv1800_pin *pin)
++{
++	return pctrl->data->vddio_ops->get_pull_up(pin, pctrl->power_cfg);
++}
++
++static int cv1800_pinctrl_oc2reg(struct cv1800_pinctrl *pctrl,
++				 struct cv1800_pin *pin, u32 target)
++{
++	const u32 *map;
++	int i, len;
++
++	len = pctrl->data->vddio_ops->get_oc_map(pin, pctrl->power_cfg, &map);
++	if (len < 0)
++		return len;
++
++	for (i = 0; i < len; i++) {
++		if (map[i] >= target)
++			return i;
++	}
++
++	return -EINVAL;
++}
++
++static int cv1800_pinctrl_reg2oc(struct cv1800_pinctrl *pctrl,
++				 struct cv1800_pin *pin, u32 reg)
++{
++	const u32 *map;
++	int len;
++
++	len = pctrl->data->vddio_ops->get_oc_map(pin, pctrl->power_cfg, &map);
++	if (len < 0)
++		return len;
++
++	if (reg >= len)
++		return -EINVAL;
++
++	return map[reg];
++}
++
++static int cv1800_pinctrl_schmitt2reg(struct cv1800_pinctrl *pctrl,
++				      struct cv1800_pin *pin, u32 target)
++{
++	const u32 *map;
++	int i, len;
++
++	len = pctrl->data->vddio_ops->get_schmitt_map(pin, pctrl->power_cfg,
++						      &map);
++	if (len < 0)
++		return len;
++
++	for (i = 0; i < len; i++) {
++		if (map[i] == target)
++			return i;
++	}
++
++	return -EINVAL;
++}
++
++static int cv1800_pinctrl_reg2schmitt(struct cv1800_pinctrl *pctrl,
++				      struct cv1800_pin *pin, u32 reg)
++{
++	const u32 *map;
++	int len;
++
++	len = pctrl->data->vddio_ops->get_schmitt_map(pin, pctrl->power_cfg,
++						      &map);
++	if (len < 0)
++		return len;
++
++	if (reg >= len)
++		return -EINVAL;
++
++	return map[reg];
++}
++
++static int cv1800_pconf_get(struct pinctrl_dev *pctldev,
++			    unsigned int pin_id, unsigned long *config)
++{
++	struct cv1800_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
++	int param = pinconf_to_config_param(*config);
++	struct cv1800_pin *pin = cv1800_get_pin(pctrl, pin_id);
++	enum cv1800_pin_io_type type;
++	u32 value;
++	u32 arg;
++	bool enabled;
++	int ret;
++
++	if (!pin)
++		return -EINVAL;
++
++	type = cv1800_pin_io_type(pin);
++	if (type == IO_TYPE_ETH || type == IO_TYPE_AUDIO)
++		return -ENOTSUPP;
++
++	value = readl(cv1800_pinctrl_get_component_addr(pctrl, &pin->conf));
++
++	switch (param) {
++	case PIN_CONFIG_BIAS_PULL_DOWN:
++		enabled = FIELD_GET(PIN_IO_PULLDOWN, value);
++		arg = cv1800_pull_down_typical_resistor(pctrl, pin);
++		break;
++	case PIN_CONFIG_BIAS_PULL_UP:
++		enabled = FIELD_GET(PIN_IO_PULLUP, value);
++		arg = cv1800_pull_up_typical_resistor(pctrl, pin);
++		break;
++	case PIN_CONFIG_DRIVE_STRENGTH_UA:
++		enabled = true;
++		arg = FIELD_GET(PIN_IO_DRIVE, value);
++		ret = cv1800_pinctrl_reg2oc(pctrl, pin, arg);
++		if (ret < 0)
++			return ret;
++		arg = ret;
++		break;
++	case PIN_CONFIG_INPUT_SCHMITT_UV:
++		arg = FIELD_GET(PIN_IO_SCHMITT, value);
++		ret = cv1800_pinctrl_reg2schmitt(pctrl, pin, arg);
++		if (ret < 0)
++			return ret;
++		arg = ret;
++		enabled = arg != 0;
++		break;
++	case PIN_CONFIG_POWER_SOURCE:
++		enabled = true;
++		arg = cv1800_get_power_cfg(pctrl, pin->power_domain);
++		break;
++	case PIN_CONFIG_SLEW_RATE:
++		enabled = true;
++		arg = FIELD_GET(PIN_IO_OUT_FAST_SLEW, value);
++		break;
++	case PIN_CONFIG_BIAS_BUS_HOLD:
++		arg = FIELD_GET(PIN_IO_BUS_HOLD, value);
++		enabled = arg != 0;
++		break;
++	default:
++		return -ENOTSUPP;
++	}
++
++	*config = pinconf_to_config_packed(param, arg);
++
++	return enabled ? 0 : -EINVAL;
++}
++
++static int cv1800_pinconf_compute_config(struct cv1800_pinctrl *pctrl,
++					 struct cv1800_pin *pin,
++					 unsigned long *configs,
++					 unsigned int num_configs,
++					 u32 *value)
++{
++	int i;
++	u32 v = 0;
++	enum cv1800_pin_io_type type;
++	int ret;
++
++	if (!pin)
++		return -EINVAL;
++
++	type = cv1800_pin_io_type(pin);
++	if (type == IO_TYPE_ETH || type == IO_TYPE_AUDIO)
++		return -ENOTSUPP;
++
++	for (i = 0; i < num_configs; i++) {
++		int param = pinconf_to_config_param(configs[i]);
++		u32 arg = pinconf_to_config_argument(configs[i]);
++
++		switch (param) {
++		case PIN_CONFIG_BIAS_PULL_DOWN:
++			v &= ~PIN_IO_PULLDOWN;
++			v |= FIELD_PREP(PIN_IO_PULLDOWN, arg);
++			break;
++		case PIN_CONFIG_BIAS_PULL_UP:
++			v &= ~PIN_IO_PULLUP;
++			v |= FIELD_PREP(PIN_IO_PULLUP, arg);
++			break;
++		case PIN_CONFIG_DRIVE_STRENGTH_UA:
++			ret = cv1800_pinctrl_oc2reg(pctrl, pin, arg);
++			if (ret < 0)
++				return ret;
++			v &= ~PIN_IO_DRIVE;
++			v |= FIELD_PREP(PIN_IO_DRIVE, ret);
++			break;
++		case PIN_CONFIG_INPUT_SCHMITT_UV:
++			ret = cv1800_pinctrl_schmitt2reg(pctrl, pin, arg);
++			if (ret < 0)
++				return ret;
++			v &= ~PIN_IO_SCHMITT;
++			v |= FIELD_PREP(PIN_IO_SCHMITT, ret);
++			break;
++		case PIN_CONFIG_POWER_SOURCE:
++			/* Ignore power source as it is always fixed */
++			break;
++		case PIN_CONFIG_SLEW_RATE:
++			v &= ~PIN_IO_OUT_FAST_SLEW;
++			v |= FIELD_PREP(PIN_IO_OUT_FAST_SLEW, arg);
++			break;
++		case PIN_CONFIG_BIAS_BUS_HOLD:
++			v &= ~PIN_IO_BUS_HOLD;
++			v |= FIELD_PREP(PIN_IO_BUS_HOLD, arg);
++			break;
++		default:
++			return -ENOTSUPP;
++		}
++	}
++
++	*value = v;
++
++	return 0;
++}
++
++static int cv1800_pin_set_config(struct cv1800_pinctrl *pctrl,
++				 unsigned int pin_id,
++				 u32 value)
++{
++	struct cv1800_pin *pin = cv1800_get_pin(pctrl, pin_id);
++	unsigned long flags;
++	void __iomem *addr;
++
++	if (!pin)
++		return -EINVAL;
++
++	addr = cv1800_pinctrl_get_component_addr(pctrl, &pin->conf);
++
++	raw_spin_lock_irqsave(&pctrl->lock, flags);
++	writel(value, addr);
++	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
++
++	return 0;
++}
++
++static int cv1800_pconf_set(struct pinctrl_dev *pctldev,
++			    unsigned int pin_id, unsigned long *configs,
++			    unsigned int num_configs)
++{
++	struct cv1800_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
++	struct cv1800_pin *pin = cv1800_get_pin(pctrl, pin_id);
++	u32 value;
++
++	if (!pin)
++		return -ENODEV;
++
++	if (cv1800_pinconf_compute_config(pctrl, pin,
++					  configs, num_configs, &value))
++		return -ENOTSUPP;
++
++	return cv1800_pin_set_config(pctrl, pin_id, value);
++}
++
++static int cv1800_pconf_group_set(struct pinctrl_dev *pctldev,
++				  unsigned int gsel,
++				  unsigned long *configs,
++				  unsigned int num_configs)
++{
++	struct cv1800_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
++	const struct group_desc *group;
++	const struct cv1800_pin_mux_config *pinmuxs;
++	u32 value;
++	int i;
++
++	group = pinctrl_generic_get_group(pctldev, gsel);
++	if (!group)
++		return -EINVAL;
++
++	pinmuxs = group->data;
++
++	if (cv1800_pinconf_compute_config(pctrl, pinmuxs[0].pin,
++					  configs, num_configs, &value))
++		return -ENOTSUPP;
++
++	for (i = 0; i < group->grp.npins; i++)
++		cv1800_pin_set_config(pctrl, group->grp.pins[i], value);
++
++	return 0;
++}
++
++static const struct pinconf_ops cv1800_pconf_ops = {
++	.pin_config_get			= cv1800_pconf_get,
++	.pin_config_set			= cv1800_pconf_set,
++	.pin_config_group_set		= cv1800_pconf_group_set,
++	.is_generic			= true,
++};
++
++int cv1800_pinctrl_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct cv1800_pinctrl *pctrl;
++	const struct cv1800_pinctrl_data *pctrl_data;
++	int ret;
++
++	pctrl_data = device_get_match_data(dev);
++	if (!pctrl_data)
++		return -ENODEV;
++
++	if (pctrl_data->npins == 0 || pctrl_data->npd == 0)
++		return dev_err_probe(dev, -EINVAL, "invalid pin data\n");
++
++	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
++	if (!pctrl)
++		return -ENOMEM;
++
++	pctrl->power_cfg = devm_kcalloc(dev, pctrl_data->npd,
++					sizeof(u32), GFP_KERNEL);
++	if (!pctrl->power_cfg)
++		return -ENOMEM;
++
++	pctrl->regs[0] = devm_platform_ioremap_resource_byname(pdev, "sys");
++	if (IS_ERR(pctrl->regs[0]))
++		return PTR_ERR(pctrl->regs[0]);
++
++	pctrl->regs[1] = devm_platform_ioremap_resource_byname(pdev, "rtc");
++	if (IS_ERR(pctrl->regs[1]))
++		return PTR_ERR(pctrl->regs[1]);
++
++	pctrl->pdesc.name = dev_name(dev);
++	pctrl->pdesc.pins = pctrl_data->pins;
++	pctrl->pdesc.npins = pctrl_data->npins;
++	pctrl->pdesc.pctlops = &cv1800_pctrl_ops;
++	pctrl->pdesc.pmxops = &cv1800_pmx_ops;
++	pctrl->pdesc.confops = &cv1800_pconf_ops;
++	pctrl->pdesc.owner = THIS_MODULE;
++
++	pctrl->data = pctrl_data;
++	pctrl->dev = dev;
++	raw_spin_lock_init(&pctrl->lock);
++	mutex_init(&pctrl->mutex);
++
++	platform_set_drvdata(pdev, pctrl);
++
++	ret = devm_pinctrl_register_and_init(dev, &pctrl->pdesc,
++					     pctrl, &pctrl->pctl_dev);
++	if (ret)
++		return dev_err_probe(dev, ret,
++				     "fail to register pinctrl driver\n");
++
++	return pinctrl_enable(pctrl->pctl_dev);
++}
++EXPORT_SYMBOL_GPL(cv1800_pinctrl_probe);
+diff --git a/drivers/pinctrl/sophgo/pinctrl-cv18xx.h b/drivers/pinctrl/sophgo/pinctrl-cv18xx.h
+new file mode 100644
+index 000000000000..1a9998abb3b7
+--- /dev/null
++++ b/drivers/pinctrl/sophgo/pinctrl-cv18xx.h
+@@ -0,0 +1,155 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
++ */
++
++#ifndef _PINCTRL_SOPHGO_CV18XX_H
++#define _PINCTRL_SOPHGO_CV18XX_H
++
++#include <linux/bits.h>
++#include <linux/bitfield.h>
++#include <linux/device.h>
++#include <linux/mutex.h>
++#include <linux/spinlock.h>
++#include <linux/platform_device.h>
++#include <linux/pinctrl/pinctrl.h>
++#include <linux/pinctrl/pinconf.h>
++
++enum cv1800_pin_io_type {
++	IO_TYPE_1V8_ONLY = 0,
++	IO_TYPE_1V8_OR_3V3 = 1,
++	IO_TYPE_AUDIO = 2,
++	IO_TYPE_ETH = 3
++};
++
++#define CV1800_PINCONF_AREA_SYS		0
++#define CV1800_PINCONF_AREA_RTC		1
++
++struct cv1800_pinmux {
++	u16	offset;
++	u8	area;
++	u8	max;
++};
++
++struct cv1800_pinmux2 {
++	u16	offset;
++	u8	area;
++	u8	max;
++	u8	pfunc;
++};
++
++struct cv1800_pinconf {
++	u16	offset;
++	u8	area;
++};
++
++#define	CV1800_PIN_HAVE_MUX2		BIT(0)
++#define CV1800_PIN_IO_TYPE		GENMASK(2, 1)
++
++#define CV1800_PIN_FLAG_IO_TYPE(type)		\
++	FIELD_PREP_CONST(CV1800_PIN_IO_TYPE, type)
++struct cv1800_pin {
++	u16				pin;
++	u16				flags;
++	u8				power_domain;
++	struct cv1800_pinmux		mux;
++	struct cv1800_pinmux2		mux2;
++	struct cv1800_pinconf		conf;
++};
++
++#define PIN_POWER_STATE_1V8		1800
++#define PIN_POWER_STATE_3V3		3300
++
++/**
++ * struct cv1800_vddio_cfg_ops - pin vddio operations
++ *
++ * @get_pull_up: get resistor for pull up;
++ * @get_pull_down: get resistor for pull down.
++ * @get_oc_map: get mapping for typical low level output current value to
++ *	register value map.
++ * @get_schmitt_map: get mapping for register value to typical schmitt
++ *	threshold.
++ */
++struct cv1800_vddio_cfg_ops {
++	int (*get_pull_up)(struct cv1800_pin *pin, const u32 *psmap);
++	int (*get_pull_down)(struct cv1800_pin *pin, const u32 *psmap);
++	int (*get_oc_map)(struct cv1800_pin *pin, const u32 *psmap,
++			  const u32 **map);
++	int (*get_schmitt_map)(struct cv1800_pin *pin, const u32 *psmap,
++			       const u32 **map);
++};
++
++struct cv1800_pinctrl_data {
++	const struct pinctrl_pin_desc		*pins;
++	const struct cv1800_pin			*pindata;
++	const char				* const *pdnames;
++	const struct cv1800_vddio_cfg_ops	*vddio_ops;
++	u16					npins;
++	u16					npd;
++};
++
++static inline enum cv1800_pin_io_type cv1800_pin_io_type(struct cv1800_pin *pin)
++{
++	return FIELD_GET(CV1800_PIN_IO_TYPE, pin->flags);
++};
++
++int cv1800_pinctrl_probe(struct platform_device *pdev);
++
++#define CV1800_FUNC_PIN(_id, _power_domain, _type,			\
++			_mux_area, _mux_offset, _mux_func_max)		\
++	{								\
++		.pin = (_id),						\
++		.power_domain = (_power_domain),			\
++		.flags = CV1800_PIN_FLAG_IO_TYPE(_type),		\
++		.mux = {						\
++			.area = (_mux_area),				\
++			.offset = (_mux_offset),			\
++			.max = (_mux_func_max),				\
++		},							\
++	}
++
++#define CV1800_GENERAL_PIN(_id, _power_domain, _type,			\
++			   _mux_area, _mux_offset, _mux_func_max,	\
++			   _conf_area, _conf_offset)			\
++	{								\
++		.pin = (_id),						\
++		.power_domain = (_power_domain),			\
++		.flags = CV1800_PIN_FLAG_IO_TYPE(_type),		\
++		.mux = {						\
++			.area = (_mux_area),				\
++			.offset = (_mux_offset),			\
++			.max = (_mux_func_max),				\
++		},							\
++		.conf = {						\
++			.area = (_conf_area),				\
++			.offset = (_conf_offset),			\
++		},							\
++	}
++
++#define CV1800_GENERATE_PIN_MUX2(_id, _power_domain, _type,		\
++				 _mux_area, _mux_offset, _mux_func_max,	\
++				 _mux2_area, _mux2_offset,		\
++				 _mux2_func_max,			\
++				 _conf_area, _conf_offset)		\
++	{								\
++		.pin = (_id),						\
++		.power_domain = (_power_domain),			\
++		.flags = CV1800_PIN_FLAG_IO_TYPE(_type) |		\
++				CV1800_PIN_HAVE_MUX2,			\
++		.mux = {						\
++			.area = (_mux_area),				\
++			.offset = (_mux_offset),			\
++			.max = (_mux_func_max),				\
++		},							\
++		.mux2 = {						\
++			.area = (_mux2_area),				\
++			.offset = (_mux2_offset),			\
++			.max = (_mux2_func_max),			\
++		},							\
++		.conf = {						\
++			.area = (_conf_area),				\
++			.offset = (_conf_offset),			\
++		},							\
++	}
++
++#endif
+diff --git a/drivers/pinctrl/sophgo/pinctrl-sg2000.c b/drivers/pinctrl/sophgo/pinctrl-sg2000.c
+new file mode 100644
+index 000000000000..63c05b4dd68f
+--- /dev/null
++++ b/drivers/pinctrl/sophgo/pinctrl-sg2000.c
+@@ -0,0 +1,771 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Sophgo SG2000 SoC pinctrl driver.
++ *
++ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
++ *
++ * This file is generated from vendor pinout definition.
++ */
++
++#include <linux/module.h>
++#include <linux/platform_device.h>
++#include <linux/of.h>
++
++#include <linux/pinctrl/pinctrl.h>
++#include <linux/pinctrl/pinmux.h>
++
++#include <dt-bindings/pinctrl/pinctrl-sg2000.h>
++
++#include "pinctrl-cv18xx.h"
++
++enum SG2000_POWER_DOMAIN {
++	VDD18A_EPHY		= 0,
++	VDD18A_MIPI		= 1,
++	VDDIO18_1		= 2,
++	VDDIO_EMMC		= 3,
++	VDDIO_RTC		= 4,
++	VDDIO_SD0		= 5,
++	VDDIO_SD1		= 6,
++	VDDIO_VIVO		= 7
++};
++
++static const char *const sg2000_power_domain_desc[] = {
++	[VDD18A_EPHY]		= "VDD18A_EPHY",
++	[VDD18A_MIPI]		= "VDD18A_MIPI",
++	[VDDIO18_1]		= "VDDIO18_1",
++	[VDDIO_EMMC]		= "VDDIO_EMMC",
++	[VDDIO_RTC]		= "VDDIO_RTC",
++	[VDDIO_SD0]		= "VDDIO_SD0",
++	[VDDIO_SD1]		= "VDDIO_SD1",
++	[VDDIO_VIVO]		= "VDDIO_VIVO",
++};
++
++static int sg2000_get_pull_up(struct cv1800_pin *pin, const u32 *psmap)
++{
++	u32 pstate = psmap[pin->power_domain];
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++
++	if (type == IO_TYPE_1V8_ONLY)
++		return 79000;
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8)
++			return 60000;
++		if (pstate == PIN_POWER_STATE_3V3)
++			return 60000;
++
++		return -EINVAL;
++	}
++
++	return -ENOTSUPP;
++}
++
++static int sg2000_get_pull_down(struct cv1800_pin *pin, const u32 *psmap)
++{
++	u32 pstate = psmap[pin->power_domain];
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++
++	if (type == IO_TYPE_1V8_ONLY)
++		return 87000;
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8)
++			return 61000;
++		if (pstate == PIN_POWER_STATE_3V3)
++			return 62000;
++
++		return -EINVAL;
++	}
++
++	return -ENOTSUPP;
++}
++
++static const u32 sg2000_1v8_oc_map[] = {
++	12800,
++	25300,
++	37400,
++	49000
++};
++
++static const u32 sg2000_18od33_1v8_oc_map[] = {
++	7800,
++	11700,
++	15500,
++	19200,
++	23000,
++	26600,
++	30200,
++	33700
++};
++
++static const u32 sg2000_18od33_3v3_oc_map[] = {
++	5500,
++	8200,
++	10800,
++	13400,
++	16100,
++	18700,
++	21200,
++	23700
++};
++
++static const u32 sg2000_eth_oc_map[] = {
++	15700,
++	17800
++};
++
++static int sg2000_get_oc_map(struct cv1800_pin *pin, const u32 *psmap,
++			     const u32 **map)
++{
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++	u32 pstate = psmap[pin->power_domain];
++
++	if (type == IO_TYPE_1V8_ONLY) {
++		*map = sg2000_1v8_oc_map;
++		return ARRAY_SIZE(sg2000_1v8_oc_map);
++	}
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8) {
++			*map = sg2000_18od33_1v8_oc_map;
++			return ARRAY_SIZE(sg2000_18od33_1v8_oc_map);
++		} else if (pstate == PIN_POWER_STATE_3V3) {
++			*map = sg2000_18od33_3v3_oc_map;
++			return ARRAY_SIZE(sg2000_18od33_3v3_oc_map);
++		}
++	}
++
++	if (type == IO_TYPE_ETH) {
++		*map = sg2000_eth_oc_map;
++		return ARRAY_SIZE(sg2000_eth_oc_map);
++	}
++
++	return -ENOTSUPP;
++}
++
++static const u32 sg2000_1v8_schmitt_map[] = {
++	0,
++	970000,
++	1040000
++};
++
++static const u32 sg2000_18od33_1v8_schmitt_map[] = {
++	0,
++	1070000
++};
++
++static const u32 sg2000_18od33_3v3_schmitt_map[] = {
++	0,
++	1100000
++};
++
++static int sg2000_get_schmitt_map(struct cv1800_pin *pin, const u32 *psmap,
++				  const u32 **map)
++{
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++	u32 pstate = psmap[pin->power_domain];
++
++	if (type == IO_TYPE_1V8_ONLY) {
++		*map = sg2000_1v8_schmitt_map;
++		return ARRAY_SIZE(sg2000_1v8_schmitt_map);
++	}
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8) {
++			*map = sg2000_18od33_1v8_schmitt_map;
++			return ARRAY_SIZE(sg2000_18od33_1v8_schmitt_map);
++		} else if (pstate == PIN_POWER_STATE_3V3) {
++			*map = sg2000_18od33_3v3_schmitt_map;
++			return ARRAY_SIZE(sg2000_18od33_3v3_schmitt_map);
++		}
++	}
++
++	return -ENOTSUPP;
++}
++
++static const struct cv1800_vddio_cfg_ops sg2000_vddio_cfg_ops = {
++	.get_pull_up		= sg2000_get_pull_up,
++	.get_pull_down		= sg2000_get_pull_down,
++	.get_oc_map		= sg2000_get_oc_map,
++	.get_schmitt_map		= sg2000_get_schmitt_map,
++};
++
++static const struct pinctrl_pin_desc sg2000_pins[] = {
++	PINCTRL_PIN(PIN_MIPI_TXM4,	"MIPI_TXM4"),
++	PINCTRL_PIN(PIN_MIPIRX0N,	"MIPIRX0N"),
++	PINCTRL_PIN(PIN_MIPIRX3P,	"MIPIRX3P"),
++	PINCTRL_PIN(PIN_MIPIRX4P,	"MIPIRX4P"),
++	PINCTRL_PIN(PIN_VIVO_D2,	"VIVO_D2"),
++	PINCTRL_PIN(PIN_VIVO_D3,	"VIVO_D3"),
++	PINCTRL_PIN(PIN_VIVO_D10,	"VIVO_D10"),
++	PINCTRL_PIN(PIN_USB_VBUS_DET,	"USB_VBUS_DET"),
++	PINCTRL_PIN(PIN_MIPI_TXP3,	"MIPI_TXP3"),
++	PINCTRL_PIN(PIN_MIPI_TXM3,	"MIPI_TXM3"),
++	PINCTRL_PIN(PIN_MIPI_TXP4,	"MIPI_TXP4"),
++	PINCTRL_PIN(PIN_MIPIRX0P,	"MIPIRX0P"),
++	PINCTRL_PIN(PIN_MIPIRX1N,	"MIPIRX1N"),
++	PINCTRL_PIN(PIN_MIPIRX2N,	"MIPIRX2N"),
++	PINCTRL_PIN(PIN_MIPIRX4N,	"MIPIRX4N"),
++	PINCTRL_PIN(PIN_MIPIRX5N,	"MIPIRX5N"),
++	PINCTRL_PIN(PIN_VIVO_D1,	"VIVO_D1"),
++	PINCTRL_PIN(PIN_VIVO_D5,	"VIVO_D5"),
++	PINCTRL_PIN(PIN_VIVO_D7,	"VIVO_D7"),
++	PINCTRL_PIN(PIN_VIVO_D9,	"VIVO_D9"),
++	PINCTRL_PIN(PIN_USB_ID,		"USB_ID"),
++	PINCTRL_PIN(PIN_ETH_RXM,	"ETH_RXM"),
++	PINCTRL_PIN(PIN_MIPI_TXP2,	"MIPI_TXP2"),
++	PINCTRL_PIN(PIN_MIPI_TXM2,	"MIPI_TXM2"),
++	PINCTRL_PIN(PIN_CAM_PD0,	"CAM_PD0"),
++	PINCTRL_PIN(PIN_CAM_MCLK0,	"CAM_MCLK0"),
++	PINCTRL_PIN(PIN_MIPIRX1P,	"MIPIRX1P"),
++	PINCTRL_PIN(PIN_MIPIRX2P,	"MIPIRX2P"),
++	PINCTRL_PIN(PIN_MIPIRX3N,	"MIPIRX3N"),
++	PINCTRL_PIN(PIN_MIPIRX5P,	"MIPIRX5P"),
++	PINCTRL_PIN(PIN_VIVO_CLK,	"VIVO_CLK"),
++	PINCTRL_PIN(PIN_VIVO_D6,	"VIVO_D6"),
++	PINCTRL_PIN(PIN_VIVO_D8,	"VIVO_D8"),
++	PINCTRL_PIN(PIN_USB_VBUS_EN,	"USB_VBUS_EN"),
++	PINCTRL_PIN(PIN_ETH_RXP,	"ETH_RXP"),
++	PINCTRL_PIN(PIN_GPIO_RTX,	"GPIO_RTX"),
++	PINCTRL_PIN(PIN_MIPI_TXP1,	"MIPI_TXP1"),
++	PINCTRL_PIN(PIN_MIPI_TXM1,	"MIPI_TXM1"),
++	PINCTRL_PIN(PIN_CAM_MCLK1,	"CAM_MCLK1"),
++	PINCTRL_PIN(PIN_IIC3_SCL,	"IIC3_SCL"),
++	PINCTRL_PIN(PIN_VIVO_D4,	"VIVO_D4"),
++	PINCTRL_PIN(PIN_ETH_TXM,	"ETH_TXM"),
++	PINCTRL_PIN(PIN_ETH_TXP,	"ETH_TXP"),
++	PINCTRL_PIN(PIN_MIPI_TXP0,	"MIPI_TXP0"),
++	PINCTRL_PIN(PIN_MIPI_TXM0,	"MIPI_TXM0"),
++	PINCTRL_PIN(PIN_CAM_PD1,	"CAM_PD1"),
++	PINCTRL_PIN(PIN_CAM_RST0,	"CAM_RST0"),
++	PINCTRL_PIN(PIN_VIVO_D0,	"VIVO_D0"),
++	PINCTRL_PIN(PIN_ADC1,		"ADC1"),
++	PINCTRL_PIN(PIN_ADC2,		"ADC2"),
++	PINCTRL_PIN(PIN_ADC3,		"ADC3"),
++	PINCTRL_PIN(PIN_AUD_AOUTL,	"AUD_AOUTL"),
++	PINCTRL_PIN(PIN_IIC3_SDA,	"IIC3_SDA"),
++	PINCTRL_PIN(PIN_SD1_D2,		"SD1_D2"),
++	PINCTRL_PIN(PIN_AUD_AOUTR,	"AUD_AOUTR"),
++	PINCTRL_PIN(PIN_SD1_D3,		"SD1_D3"),
++	PINCTRL_PIN(PIN_SD1_CLK,	"SD1_CLK"),
++	PINCTRL_PIN(PIN_SD1_CMD,	"SD1_CMD"),
++	PINCTRL_PIN(PIN_AUD_AINL_MIC,	"AUD_AINL_MIC"),
++	PINCTRL_PIN(PIN_RSTN,		"RSTN"),
++	PINCTRL_PIN(PIN_PWM0_BUCK,	"PWM0_BUCK"),
++	PINCTRL_PIN(PIN_SD1_D1,		"SD1_D1"),
++	PINCTRL_PIN(PIN_SD1_D0,		"SD1_D0"),
++	PINCTRL_PIN(PIN_AUD_AINR_MIC,	"AUD_AINR_MIC"),
++	PINCTRL_PIN(PIN_IIC2_SCL,	"IIC2_SCL"),
++	PINCTRL_PIN(PIN_IIC2_SDA,	"IIC2_SDA"),
++	PINCTRL_PIN(PIN_SD0_CD,		"SD0_CD"),
++	PINCTRL_PIN(PIN_SD0_D1,		"SD0_D1"),
++	PINCTRL_PIN(PIN_UART2_RX,	"UART2_RX"),
++	PINCTRL_PIN(PIN_UART2_CTS,	"UART2_CTS"),
++	PINCTRL_PIN(PIN_UART2_TX,	"UART2_TX"),
++	PINCTRL_PIN(PIN_SD0_CLK,	"SD0_CLK"),
++	PINCTRL_PIN(PIN_SD0_D0,		"SD0_D0"),
++	PINCTRL_PIN(PIN_SD0_CMD,	"SD0_CMD"),
++	PINCTRL_PIN(PIN_CLK32K,		"CLK32K"),
++	PINCTRL_PIN(PIN_UART2_RTS,	"UART2_RTS"),
++	PINCTRL_PIN(PIN_SD0_D3,		"SD0_D3"),
++	PINCTRL_PIN(PIN_SD0_D2,		"SD0_D2"),
++	PINCTRL_PIN(PIN_UART0_RX,	"UART0_RX"),
++	PINCTRL_PIN(PIN_UART0_TX,	"UART0_TX"),
++	PINCTRL_PIN(PIN_JTAG_CPU_TRST,	"JTAG_CPU_TRST"),
++	PINCTRL_PIN(PIN_PWR_ON,		"PWR_ON"),
++	PINCTRL_PIN(PIN_PWR_GPIO2,	"PWR_GPIO2"),
++	PINCTRL_PIN(PIN_PWR_GPIO0,	"PWR_GPIO0"),
++	PINCTRL_PIN(PIN_CLK25M,		"CLK25M"),
++	PINCTRL_PIN(PIN_SD0_PWR_EN,	"SD0_PWR_EN"),
++	PINCTRL_PIN(PIN_SPK_EN,		"SPK_EN"),
++	PINCTRL_PIN(PIN_JTAG_CPU_TCK,	"JTAG_CPU_TCK"),
++	PINCTRL_PIN(PIN_JTAG_CPU_TMS,	"JTAG_CPU_TMS"),
++	PINCTRL_PIN(PIN_PWR_WAKEUP1,	"PWR_WAKEUP1"),
++	PINCTRL_PIN(PIN_PWR_WAKEUP0,	"PWR_WAKEUP0"),
++	PINCTRL_PIN(PIN_PWR_GPIO1,	"PWR_GPIO1"),
++	PINCTRL_PIN(PIN_EMMC_DAT3,	"EMMC_DAT3"),
++	PINCTRL_PIN(PIN_EMMC_DAT0,	"EMMC_DAT0"),
++	PINCTRL_PIN(PIN_EMMC_DAT2,	"EMMC_DAT2"),
++	PINCTRL_PIN(PIN_EMMC_RSTN,	"EMMC_RSTN"),
++	PINCTRL_PIN(PIN_AUX0,		"AUX0"),
++	PINCTRL_PIN(PIN_IIC0_SDA,	"IIC0_SDA"),
++	PINCTRL_PIN(PIN_PWR_SEQ3,	"PWR_SEQ3"),
++	PINCTRL_PIN(PIN_PWR_VBAT_DET,	"PWR_VBAT_DET"),
++	PINCTRL_PIN(PIN_PWR_SEQ1,	"PWR_SEQ1"),
++	PINCTRL_PIN(PIN_PWR_BUTTON1,	"PWR_BUTTON1"),
++	PINCTRL_PIN(PIN_EMMC_DAT1,	"EMMC_DAT1"),
++	PINCTRL_PIN(PIN_EMMC_CMD,	"EMMC_CMD"),
++	PINCTRL_PIN(PIN_EMMC_CLK,	"EMMC_CLK"),
++	PINCTRL_PIN(PIN_IIC0_SCL,	"IIC0_SCL"),
++	PINCTRL_PIN(PIN_GPIO_ZQ,	"GPIO_ZQ"),
++	PINCTRL_PIN(PIN_PWR_RSTN,	"PWR_RSTN"),
++	PINCTRL_PIN(PIN_PWR_SEQ2,	"PWR_SEQ2"),
++	PINCTRL_PIN(PIN_XTAL_XIN,	"XTAL_XIN"),
++};
++
++static const struct cv1800_pin sg2000_pin_data[ARRAY_SIZE(sg2000_pins)] = {
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM4, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x194, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc60),
++	CV1800_GENERAL_PIN(PIN_MIPIRX0N, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x18c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc58),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX3P, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x178, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x118, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc44),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX4P, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x170, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x11c, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc3c),
++	CV1800_GENERAL_PIN(PIN_VIVO_D2, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x154, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc20),
++	CV1800_GENERAL_PIN(PIN_VIVO_D3, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x150, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc1c),
++	CV1800_GENERAL_PIN(PIN_VIVO_D10, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x134, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc00),
++	CV1800_GENERAL_PIN(PIN_USB_VBUS_DET, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x108, 5,
++			   CV1800_PINCONF_AREA_SYS, 0x820),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP3, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1a0, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc6c),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM3, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x19c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc68),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP4, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x198, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc64),
++	CV1800_GENERAL_PIN(PIN_MIPIRX0P, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x190, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc5c),
++	CV1800_GENERAL_PIN(PIN_MIPIRX1N, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x184, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc50),
++	CV1800_GENERAL_PIN(PIN_MIPIRX2N, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x17c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc48),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX4N, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x16c, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x120, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc38),
++	CV1800_GENERAL_PIN(PIN_MIPIRX5N, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x164, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc30),
++	CV1800_GENERAL_PIN(PIN_VIVO_D1, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x158, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc24),
++	CV1800_GENERAL_PIN(PIN_VIVO_D5, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x148, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc14),
++	CV1800_GENERAL_PIN(PIN_VIVO_D7, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x140, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc0c),
++	CV1800_GENERAL_PIN(PIN_VIVO_D9, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x138, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc04),
++	CV1800_GENERAL_PIN(PIN_USB_ID, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0fc, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x814),
++	CV1800_FUNC_PIN(PIN_ETH_RXM, VDD18A_EPHY,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x130, 7),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP2, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1a8, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc74),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM2, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1a4, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc70),
++	CV1800_GENERAL_PIN(PIN_CAM_PD0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x004, 4,
++			   CV1800_PINCONF_AREA_SYS, 0xb04),
++	CV1800_GENERAL_PIN(PIN_CAM_MCLK0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x000, 3,
++			   CV1800_PINCONF_AREA_SYS, 0xb00),
++	CV1800_GENERAL_PIN(PIN_MIPIRX1P, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x188, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc54),
++	CV1800_GENERAL_PIN(PIN_MIPIRX2P, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x180, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc4c),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX3N, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x174, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x114, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc40),
++	CV1800_GENERAL_PIN(PIN_MIPIRX5P, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x168, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc34),
++	CV1800_GENERAL_PIN(PIN_VIVO_CLK, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x160, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc2c),
++	CV1800_GENERAL_PIN(PIN_VIVO_D6, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x144, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc10),
++	CV1800_GENERAL_PIN(PIN_VIVO_D8, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x13c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc08),
++	CV1800_GENERAL_PIN(PIN_USB_VBUS_EN, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x100, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x818),
++	CV1800_FUNC_PIN(PIN_ETH_RXP, VDD18A_EPHY,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x12c, 7),
++	CV1800_GENERAL_PIN(PIN_GPIO_RTX, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1cc, 5,
++			   CV1800_PINCONF_AREA_SYS, 0xc8c),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP1, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1b0, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc7c),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM1, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1ac, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc78),
++	CV1800_GENERAL_PIN(PIN_CAM_MCLK1, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x00c, 4,
++			   CV1800_PINCONF_AREA_SYS, 0xb0c),
++	CV1800_GENERAL_PIN(PIN_IIC3_SCL, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x014, 3,
++			   CV1800_PINCONF_AREA_SYS, 0xb14),
++	CV1800_GENERAL_PIN(PIN_VIVO_D4, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x14c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc18),
++	CV1800_FUNC_PIN(PIN_ETH_TXM, VDD18A_EPHY,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x128, 7),
++	CV1800_FUNC_PIN(PIN_ETH_TXP, VDD18A_EPHY,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x124, 7),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1b8, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc84),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1b4, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc80),
++	CV1800_GENERAL_PIN(PIN_CAM_PD1, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x010, 6,
++			   CV1800_PINCONF_AREA_SYS, 0xb10),
++	CV1800_GENERAL_PIN(PIN_CAM_RST0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x008, 6,
++			   CV1800_PINCONF_AREA_SYS, 0xb08),
++	CV1800_GENERAL_PIN(PIN_VIVO_D0, VDDIO_VIVO,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x15c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc28),
++	CV1800_GENERAL_PIN(PIN_ADC1, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0f8, 4,
++			   CV1800_PINCONF_AREA_SYS, 0x810),
++	CV1800_GENERAL_PIN(PIN_ADC2, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0f4, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x80c),
++	CV1800_GENERAL_PIN(PIN_ADC3, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0f0, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x808),
++	CV1800_FUNC_PIN(PIN_AUD_AOUTL, VDD18A_MIPI,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x1c4, 5),
++	CV1800_GENERAL_PIN(PIN_IIC3_SDA, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x018, 3,
++			   CV1800_PINCONF_AREA_SYS, 0xb18),
++	CV1800_GENERAL_PIN(PIN_SD1_D2, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0d4, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x05c),
++	CV1800_FUNC_PIN(PIN_AUD_AOUTR, VDD18A_MIPI,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x1c8, 6),
++	CV1800_GENERAL_PIN(PIN_SD1_D3, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0d0, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x058),
++	CV1800_GENERAL_PIN(PIN_SD1_CLK, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0e4, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x06c),
++	CV1800_GENERAL_PIN(PIN_SD1_CMD, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0e0, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x068),
++	CV1800_FUNC_PIN(PIN_AUD_AINL_MIC, VDD18A_MIPI,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x1bc, 5),
++	CV1800_GENERAL_PIN(PIN_RSTN, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0e8, 0,
++			   CV1800_PINCONF_AREA_SYS, 0x800),
++	CV1800_GENERAL_PIN(PIN_PWM0_BUCK, VDDIO18_1,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0ec, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x804),
++	CV1800_GENERAL_PIN(PIN_SD1_D1, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0d8, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x060),
++	CV1800_GENERAL_PIN(PIN_SD1_D0, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0dc, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x064),
++	CV1800_FUNC_PIN(PIN_AUD_AINR_MIC, VDD18A_MIPI,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x1c0, 6),
++	CV1800_GENERAL_PIN(PIN_IIC2_SCL, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0b8, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x040),
++	CV1800_GENERAL_PIN(PIN_IIC2_SDA, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0bc, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x044),
++	CV1800_GENERAL_PIN(PIN_SD0_CD, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x034, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x900),
++	CV1800_GENERAL_PIN(PIN_SD0_D1, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x028, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa0c),
++	CV1800_GENERAL_PIN(PIN_UART2_RX, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0c8, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x050),
++	CV1800_GENERAL_PIN(PIN_UART2_CTS, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0cc, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x054),
++	CV1800_GENERAL_PIN(PIN_UART2_TX, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0c0, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x048),
++	CV1800_GENERAL_PIN(PIN_SD0_CLK, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x01c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa00),
++	CV1800_GENERAL_PIN(PIN_SD0_D0, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x024, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa08),
++	CV1800_GENERAL_PIN(PIN_SD0_CMD, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x020, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa04),
++	CV1800_GENERAL_PIN(PIN_CLK32K, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0b0, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x038),
++	CV1800_GENERAL_PIN(PIN_UART2_RTS, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0c4, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x04c),
++	CV1800_GENERAL_PIN(PIN_SD0_D3, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x030, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa14),
++	CV1800_GENERAL_PIN(PIN_SD0_D2, VDDIO_SD0,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x02c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa10),
++	CV1800_GENERAL_PIN(PIN_UART0_RX, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x044, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x910),
++	CV1800_GENERAL_PIN(PIN_UART0_TX, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x040, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x90c),
++	CV1800_GENERAL_PIN(PIN_JTAG_CPU_TRST, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x06c, 6,
++			   CV1800_PINCONF_AREA_SYS, 0x938),
++	CV1800_GENERAL_PIN(PIN_PWR_ON, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x09c, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x024),
++	CV1800_GENERAL_PIN(PIN_PWR_GPIO2, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0ac, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x034),
++	CV1800_GENERAL_PIN(PIN_PWR_GPIO0, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0a4, 4,
++			   CV1800_PINCONF_AREA_RTC, 0x02c),
++	CV1800_GENERAL_PIN(PIN_CLK25M, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0b4, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x03c),
++	CV1800_GENERAL_PIN(PIN_SD0_PWR_EN, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x038, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x904),
++	CV1800_GENERAL_PIN(PIN_SPK_EN, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x03c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x908),
++	CV1800_GENERAL_PIN(PIN_JTAG_CPU_TCK, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x068, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x934),
++	CV1800_GENERAL_PIN(PIN_JTAG_CPU_TMS, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x064, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x930),
++	CV1800_GENERAL_PIN(PIN_PWR_WAKEUP1, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x094, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x01c),
++	CV1800_GENERAL_PIN(PIN_PWR_WAKEUP0, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x090, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x018),
++	CV1800_GENERAL_PIN(PIN_PWR_GPIO1, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0a8, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x030),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT3, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x058, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x924),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT0, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x054, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x920),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT2, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x04c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x918),
++	CV1800_GENERAL_PIN(PIN_EMMC_RSTN, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x048, 4,
++			   CV1800_PINCONF_AREA_SYS, 0x914),
++	CV1800_GENERAL_PIN(PIN_AUX0, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x078, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x944),
++	CV1800_GENERAL_PIN(PIN_IIC0_SDA, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x074, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x940),
++	CV1800_GENERAL_PIN(PIN_PWR_SEQ3, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x08c, 3,
++			   CV1800_PINCONF_AREA_RTC, 0x010),
++	CV1800_GENERAL_PIN(PIN_PWR_VBAT_DET, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x07c, 0,
++			   CV1800_PINCONF_AREA_RTC, 0x000),
++	CV1800_GENERAL_PIN(PIN_PWR_SEQ1, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x084, 3,
++			   CV1800_PINCONF_AREA_RTC, 0x008),
++	CV1800_GENERAL_PIN(PIN_PWR_BUTTON1, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x098, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x020),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT1, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x060, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x92c),
++	CV1800_GENERAL_PIN(PIN_EMMC_CMD, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x05c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x928),
++	CV1800_GENERAL_PIN(PIN_EMMC_CLK, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x050, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x91c),
++	CV1800_GENERAL_PIN(PIN_IIC0_SCL, VDDIO_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x070, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x93c),
++	CV1800_GENERAL_PIN(PIN_GPIO_ZQ, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1d0, 4,
++			   CV1800_PINCONF_AREA_RTC, 0x0e0),
++	CV1800_GENERAL_PIN(PIN_PWR_RSTN, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x080, 0,
++			   CV1800_PINCONF_AREA_RTC, 0x004),
++	CV1800_GENERAL_PIN(PIN_PWR_SEQ2, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x088, 3,
++			   CV1800_PINCONF_AREA_RTC, 0x00c),
++	CV1800_GENERAL_PIN(PIN_XTAL_XIN, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0a0, 0,
++			   CV1800_PINCONF_AREA_RTC, 0x028),
++};
++
++static const struct cv1800_pinctrl_data sg2000_pindata = {
++	.pins		= sg2000_pins,
++	.pindata	= sg2000_pin_data,
++	.pdnames	= sg2000_power_domain_desc,
++	.vddio_ops	= &sg2000_vddio_cfg_ops,
++	.npins		= ARRAY_SIZE(sg2000_pins),
++	.npd		= ARRAY_SIZE(sg2000_power_domain_desc),
++};
++
++static const struct of_device_id sg2000_pinctrl_ids[] = {
++	{ .compatible = "sophgo,sg2000-pinctrl", .data = &sg2000_pindata },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, sg2000_pinctrl_ids);
++
++static struct platform_driver sg2000_pinctrl_driver = {
++	.probe	= cv1800_pinctrl_probe,
++	.driver	= {
++		.name			= "sg2000-pinctrl",
++		.suppress_bind_attrs	= true,
++		.of_match_table		= sg2000_pinctrl_ids,
++	},
++};
++module_platform_driver(sg2000_pinctrl_driver);
++
++MODULE_DESCRIPTION("Pinctrl driver for the SG2000 series SoC");
++MODULE_LICENSE("GPL");
+diff --git a/drivers/pinctrl/sophgo/pinctrl-sg2002.c b/drivers/pinctrl/sophgo/pinctrl-sg2002.c
+new file mode 100644
+index 000000000000..5c49208dcb59
+--- /dev/null
++++ b/drivers/pinctrl/sophgo/pinctrl-sg2002.c
+@@ -0,0 +1,542 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Sophgo SG2002 SoC pinctrl driver.
++ *
++ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
++ *
++ * This file is generated from vendor pinout definition.
++ */
++
++#include <linux/module.h>
++#include <linux/platform_device.h>
++#include <linux/of.h>
++
++#include <linux/pinctrl/pinctrl.h>
++#include <linux/pinctrl/pinmux.h>
++
++#include <dt-bindings/pinctrl/pinctrl-sg2002.h>
++
++#include "pinctrl-cv18xx.h"
++
++enum SG2002_POWER_DOMAIN {
++	VDD18A_MIPI		= 0,
++	VDD18A_USB_PLL_ETH	= 1,
++	VDDIO_RTC		= 2,
++	VDDIO_SD0_EMMC		= 3,
++	VDDIO_SD1		= 4
++};
++
++static const char *const sg2002_power_domain_desc[] = {
++	[VDD18A_MIPI]		= "VDD18A_MIPI",
++	[VDD18A_USB_PLL_ETH]	= "VDD18A_USB_PLL_ETH",
++	[VDDIO_RTC]		= "VDDIO_RTC",
++	[VDDIO_SD0_EMMC]	= "VDDIO_SD0_EMMC",
++	[VDDIO_SD1]		= "VDDIO_SD1",
++};
++
++static int sg2002_get_pull_up(struct cv1800_pin *pin, const u32 *psmap)
++{
++	u32 pstate = psmap[pin->power_domain];
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++
++	if (type == IO_TYPE_1V8_ONLY)
++		return 79000;
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8)
++			return 60000;
++		if (pstate == PIN_POWER_STATE_3V3)
++			return 60000;
++
++		return -EINVAL;
++	}
++
++	return -ENOTSUPP;
++}
++
++static int sg2002_get_pull_down(struct cv1800_pin *pin, const u32 *psmap)
++{
++	u32 pstate = psmap[pin->power_domain];
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++
++	if (type == IO_TYPE_1V8_ONLY)
++		return 87000;
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8)
++			return 61000;
++		if (pstate == PIN_POWER_STATE_3V3)
++			return 62000;
++
++		return -EINVAL;
++	}
++
++	return -ENOTSUPP;
++}
++
++static const u32 sg2002_1v8_oc_map[] = {
++	12800,
++	25300,
++	37400,
++	49000
++};
++
++static const u32 sg2002_18od33_1v8_oc_map[] = {
++	7800,
++	11700,
++	15500,
++	19200,
++	23000,
++	26600,
++	30200,
++	33700
++};
++
++static const u32 sg2002_18od33_3v3_oc_map[] = {
++	5500,
++	8200,
++	10800,
++	13400,
++	16100,
++	18700,
++	21200,
++	23700
++};
++
++static const u32 sg2002_eth_oc_map[] = {
++	15700,
++	17800
++};
++
++static int sg2002_get_oc_map(struct cv1800_pin *pin, const u32 *psmap,
++			     const u32 **map)
++{
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++	u32 pstate = psmap[pin->power_domain];
++
++	if (type == IO_TYPE_1V8_ONLY) {
++		*map = sg2002_1v8_oc_map;
++		return ARRAY_SIZE(sg2002_1v8_oc_map);
++	}
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8) {
++			*map = sg2002_18od33_1v8_oc_map;
++			return ARRAY_SIZE(sg2002_18od33_1v8_oc_map);
++		} else if (pstate == PIN_POWER_STATE_3V3) {
++			*map = sg2002_18od33_3v3_oc_map;
++			return ARRAY_SIZE(sg2002_18od33_3v3_oc_map);
++		}
++	}
++
++	if (type == IO_TYPE_ETH) {
++		*map = sg2002_eth_oc_map;
++		return ARRAY_SIZE(sg2002_eth_oc_map);
++	}
++
++	return -ENOTSUPP;
++}
++
++static const u32 sg2002_1v8_schmitt_map[] = {
++	0,
++	970000,
++	1040000
++};
++
++static const u32 sg2002_18od33_1v8_schmitt_map[] = {
++	0,
++	1070000
++};
++
++static const u32 sg2002_18od33_3v3_schmitt_map[] = {
++	0,
++	1100000
++};
++
++static int sg2002_get_schmitt_map(struct cv1800_pin *pin, const u32 *psmap,
++				  const u32 **map)
++{
++	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
++	u32 pstate = psmap[pin->power_domain];
++
++	if (type == IO_TYPE_1V8_ONLY) {
++		*map = sg2002_1v8_schmitt_map;
++		return ARRAY_SIZE(sg2002_1v8_schmitt_map);
++	}
++
++	if (type == IO_TYPE_1V8_OR_3V3) {
++		if (pstate == PIN_POWER_STATE_1V8) {
++			*map = sg2002_18od33_1v8_schmitt_map;
++			return ARRAY_SIZE(sg2002_18od33_1v8_schmitt_map);
++		} else if (pstate == PIN_POWER_STATE_3V3) {
++			*map = sg2002_18od33_3v3_schmitt_map;
++			return ARRAY_SIZE(sg2002_18od33_3v3_schmitt_map);
++		}
++	}
++
++	return -ENOTSUPP;
++}
++
++static const struct cv1800_vddio_cfg_ops sg2002_vddio_cfg_ops = {
++	.get_pull_up		= sg2002_get_pull_up,
++	.get_pull_down		= sg2002_get_pull_down,
++	.get_oc_map		= sg2002_get_oc_map,
++	.get_schmitt_map		= sg2002_get_schmitt_map,
++};
++
++static const struct pinctrl_pin_desc sg2002_pins[] = {
++	PINCTRL_PIN(PIN_AUD_AINL_MIC,	"AUD_AINL_MIC"),
++	PINCTRL_PIN(PIN_AUD_AOUTR,	"AUD_AOUTR"),
++	PINCTRL_PIN(PIN_SD0_CLK,	"SD0_CLK"),
++	PINCTRL_PIN(PIN_SD0_CMD,	"SD0_CMD"),
++	PINCTRL_PIN(PIN_SD0_D0,		"SD0_D0"),
++	PINCTRL_PIN(PIN_SD0_D1,		"SD0_D1"),
++	PINCTRL_PIN(PIN_SD0_D2,		"SD0_D2"),
++	PINCTRL_PIN(PIN_SD0_D3,		"SD0_D3"),
++	PINCTRL_PIN(PIN_SD0_CD,		"SD0_CD"),
++	PINCTRL_PIN(PIN_SD0_PWR_EN,	"SD0_PWR_EN"),
++	PINCTRL_PIN(PIN_SPK_EN,		"SPK_EN"),
++	PINCTRL_PIN(PIN_UART0_TX,	"UART0_TX"),
++	PINCTRL_PIN(PIN_UART0_RX,	"UART0_RX"),
++	PINCTRL_PIN(PIN_EMMC_DAT2,	"EMMC_DAT2"),
++	PINCTRL_PIN(PIN_EMMC_CLK,	"EMMC_CLK"),
++	PINCTRL_PIN(PIN_EMMC_DAT0,	"EMMC_DAT0"),
++	PINCTRL_PIN(PIN_EMMC_DAT3,	"EMMC_DAT3"),
++	PINCTRL_PIN(PIN_EMMC_CMD,	"EMMC_CMD"),
++	PINCTRL_PIN(PIN_EMMC_DAT1,	"EMMC_DAT1"),
++	PINCTRL_PIN(PIN_JTAG_CPU_TMS,	"JTAG_CPU_TMS"),
++	PINCTRL_PIN(PIN_JTAG_CPU_TCK,	"JTAG_CPU_TCK"),
++	PINCTRL_PIN(PIN_IIC0_SCL,	"IIC0_SCL"),
++	PINCTRL_PIN(PIN_IIC0_SDA,	"IIC0_SDA"),
++	PINCTRL_PIN(PIN_AUX0,		"AUX0"),
++	PINCTRL_PIN(PIN_GPIO_ZQ,	"GPIO_ZQ"),
++	PINCTRL_PIN(PIN_PWR_VBAT_DET,	"PWR_VBAT_DET"),
++	PINCTRL_PIN(PIN_PWR_RSTN,	"PWR_RSTN"),
++	PINCTRL_PIN(PIN_PWR_SEQ1,	"PWR_SEQ1"),
++	PINCTRL_PIN(PIN_PWR_SEQ2,	"PWR_SEQ2"),
++	PINCTRL_PIN(PIN_PWR_WAKEUP0,	"PWR_WAKEUP0"),
++	PINCTRL_PIN(PIN_PWR_BUTTON1,	"PWR_BUTTON1"),
++	PINCTRL_PIN(PIN_XTAL_XIN,	"XTAL_XIN"),
++	PINCTRL_PIN(PIN_PWR_GPIO0,	"PWR_GPIO0"),
++	PINCTRL_PIN(PIN_PWR_GPIO1,	"PWR_GPIO1"),
++	PINCTRL_PIN(PIN_PWR_GPIO2,	"PWR_GPIO2"),
++	PINCTRL_PIN(PIN_SD1_D3,		"SD1_D3"),
++	PINCTRL_PIN(PIN_SD1_D2,		"SD1_D2"),
++	PINCTRL_PIN(PIN_SD1_D1,		"SD1_D1"),
++	PINCTRL_PIN(PIN_SD1_D0,		"SD1_D0"),
++	PINCTRL_PIN(PIN_SD1_CMD,	"SD1_CMD"),
++	PINCTRL_PIN(PIN_SD1_CLK,	"SD1_CLK"),
++	PINCTRL_PIN(PIN_PWM0_BUCK,	"PWM0_BUCK"),
++	PINCTRL_PIN(PIN_ADC1,		"ADC1"),
++	PINCTRL_PIN(PIN_USB_VBUS_DET,	"USB_VBUS_DET"),
++	PINCTRL_PIN(PIN_ETH_TXP,	"ETH_TXP"),
++	PINCTRL_PIN(PIN_ETH_TXM,	"ETH_TXM"),
++	PINCTRL_PIN(PIN_ETH_RXP,	"ETH_RXP"),
++	PINCTRL_PIN(PIN_ETH_RXM,	"ETH_RXM"),
++	PINCTRL_PIN(PIN_GPIO_RTX,	"GPIO_RTX"),
++	PINCTRL_PIN(PIN_MIPIRX4N,	"MIPIRX4N"),
++	PINCTRL_PIN(PIN_MIPIRX4P,	"MIPIRX4P"),
++	PINCTRL_PIN(PIN_MIPIRX3N,	"MIPIRX3N"),
++	PINCTRL_PIN(PIN_MIPIRX3P,	"MIPIRX3P"),
++	PINCTRL_PIN(PIN_MIPIRX2N,	"MIPIRX2N"),
++	PINCTRL_PIN(PIN_MIPIRX2P,	"MIPIRX2P"),
++	PINCTRL_PIN(PIN_MIPIRX1N,	"MIPIRX1N"),
++	PINCTRL_PIN(PIN_MIPIRX1P,	"MIPIRX1P"),
++	PINCTRL_PIN(PIN_MIPIRX0N,	"MIPIRX0N"),
++	PINCTRL_PIN(PIN_MIPIRX0P,	"MIPIRX0P"),
++	PINCTRL_PIN(PIN_MIPI_TXM2,	"MIPI_TXM2"),
++	PINCTRL_PIN(PIN_MIPI_TXP2,	"MIPI_TXP2"),
++	PINCTRL_PIN(PIN_MIPI_TXM1,	"MIPI_TXM1"),
++	PINCTRL_PIN(PIN_MIPI_TXP1,	"MIPI_TXP1"),
++	PINCTRL_PIN(PIN_MIPI_TXM0,	"MIPI_TXM0"),
++	PINCTRL_PIN(PIN_MIPI_TXP0,	"MIPI_TXP0"),
++};
++
++static const struct cv1800_pin sg2002_pin_data[ARRAY_SIZE(sg2002_pins)] = {
++	CV1800_FUNC_PIN(PIN_AUD_AINL_MIC, VDD18A_MIPI,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x1bc, 5),
++	CV1800_FUNC_PIN(PIN_AUD_AOUTR, VDD18A_MIPI,
++			IO_TYPE_AUDIO,
++			CV1800_PINCONF_AREA_SYS, 0x1c8, 6),
++	CV1800_GENERAL_PIN(PIN_SD0_CLK, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x01c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa00),
++	CV1800_GENERAL_PIN(PIN_SD0_CMD, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x020, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa04),
++	CV1800_GENERAL_PIN(PIN_SD0_D0, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x024, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa08),
++	CV1800_GENERAL_PIN(PIN_SD0_D1, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x028, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa0c),
++	CV1800_GENERAL_PIN(PIN_SD0_D2, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x02c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa10),
++	CV1800_GENERAL_PIN(PIN_SD0_D3, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x030, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xa14),
++	CV1800_GENERAL_PIN(PIN_SD0_CD, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x034, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x900),
++	CV1800_GENERAL_PIN(PIN_SD0_PWR_EN, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x038, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x904),
++	CV1800_GENERAL_PIN(PIN_SPK_EN, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x03c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x908),
++	CV1800_GENERAL_PIN(PIN_UART0_TX, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x040, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x90c),
++	CV1800_GENERAL_PIN(PIN_UART0_RX, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x044, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x910),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT2, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x04c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x918),
++	CV1800_GENERAL_PIN(PIN_EMMC_CLK, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x050, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x91c),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT0, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x054, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x920),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT3, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x058, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x924),
++	CV1800_GENERAL_PIN(PIN_EMMC_CMD, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x05c, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x928),
++	CV1800_GENERAL_PIN(PIN_EMMC_DAT1, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x060, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x92c),
++	CV1800_GENERAL_PIN(PIN_JTAG_CPU_TMS, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x064, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x930),
++	CV1800_GENERAL_PIN(PIN_JTAG_CPU_TCK, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x068, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x934),
++	CV1800_GENERAL_PIN(PIN_IIC0_SCL, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x070, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x93c),
++	CV1800_GENERAL_PIN(PIN_IIC0_SDA, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x074, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x940),
++	CV1800_GENERAL_PIN(PIN_AUX0, VDDIO_SD0_EMMC,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x078, 7,
++			   CV1800_PINCONF_AREA_SYS, 0x944),
++	CV1800_GENERAL_PIN(PIN_GPIO_ZQ, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1d0, 4,
++			   CV1800_PINCONF_AREA_RTC, 0x0e0),
++	CV1800_GENERAL_PIN(PIN_PWR_VBAT_DET, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x07c, 0,
++			   CV1800_PINCONF_AREA_RTC, 0x000),
++	CV1800_GENERAL_PIN(PIN_PWR_RSTN, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x080, 0,
++			   CV1800_PINCONF_AREA_RTC, 0x004),
++	CV1800_GENERAL_PIN(PIN_PWR_SEQ1, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x084, 3,
++			   CV1800_PINCONF_AREA_RTC, 0x008),
++	CV1800_GENERAL_PIN(PIN_PWR_SEQ2, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x088, 3,
++			   CV1800_PINCONF_AREA_RTC, 0x00c),
++	CV1800_GENERAL_PIN(PIN_PWR_WAKEUP0, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x090, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x018),
++	CV1800_GENERAL_PIN(PIN_PWR_BUTTON1, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x098, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x020),
++	CV1800_GENERAL_PIN(PIN_XTAL_XIN, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0a0, 0,
++			   CV1800_PINCONF_AREA_RTC, 0x028),
++	CV1800_GENERAL_PIN(PIN_PWR_GPIO0, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0a4, 4,
++			   CV1800_PINCONF_AREA_RTC, 0x02c),
++	CV1800_GENERAL_PIN(PIN_PWR_GPIO1, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0a8, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x030),
++	CV1800_GENERAL_PIN(PIN_PWR_GPIO2, VDDIO_RTC,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0ac, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x034),
++	CV1800_GENERAL_PIN(PIN_SD1_D3, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0d0, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x058),
++	CV1800_GENERAL_PIN(PIN_SD1_D2, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0d4, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x05c),
++	CV1800_GENERAL_PIN(PIN_SD1_D1, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0d8, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x060),
++	CV1800_GENERAL_PIN(PIN_SD1_D0, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0dc, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x064),
++	CV1800_GENERAL_PIN(PIN_SD1_CMD, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0e0, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x068),
++	CV1800_GENERAL_PIN(PIN_SD1_CLK, VDDIO_SD1,
++			   IO_TYPE_1V8_OR_3V3,
++			   CV1800_PINCONF_AREA_SYS, 0x0e4, 7,
++			   CV1800_PINCONF_AREA_RTC, 0x06c),
++	CV1800_GENERAL_PIN(PIN_PWM0_BUCK, VDD18A_USB_PLL_ETH,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0ec, 3,
++			   CV1800_PINCONF_AREA_SYS, 0x804),
++	CV1800_GENERAL_PIN(PIN_ADC1, VDD18A_USB_PLL_ETH,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x0f8, 4,
++			   CV1800_PINCONF_AREA_SYS, 0x810),
++	CV1800_GENERAL_PIN(PIN_USB_VBUS_DET, VDD18A_USB_PLL_ETH,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x108, 5,
++			   CV1800_PINCONF_AREA_SYS, 0x820),
++	CV1800_FUNC_PIN(PIN_ETH_TXP, VDD18A_USB_PLL_ETH,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x124, 7),
++	CV1800_FUNC_PIN(PIN_ETH_TXM, VDD18A_USB_PLL_ETH,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x128, 7),
++	CV1800_FUNC_PIN(PIN_ETH_RXP, VDD18A_USB_PLL_ETH,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x12c, 7),
++	CV1800_FUNC_PIN(PIN_ETH_RXM, VDD18A_USB_PLL_ETH,
++			IO_TYPE_ETH,
++			CV1800_PINCONF_AREA_SYS, 0x130, 7),
++	CV1800_GENERAL_PIN(PIN_GPIO_RTX, VDD18A_USB_PLL_ETH,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1cc, 5,
++			   CV1800_PINCONF_AREA_SYS, 0xc8c),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX4N, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x16c, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x120, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc38),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX4P, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x170, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x11c, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc3c),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX3N, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x174, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x114, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc40),
++	CV1800_GENERATE_PIN_MUX2(PIN_MIPIRX3P, VDD18A_MIPI,
++				 IO_TYPE_1V8_ONLY,
++				 CV1800_PINCONF_AREA_SYS, 0x178, 7,
++				 CV1800_PINCONF_AREA_SYS, 0x118, 7,
++				 CV1800_PINCONF_AREA_SYS, 0xc44),
++	CV1800_GENERAL_PIN(PIN_MIPIRX2N, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x17c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc48),
++	CV1800_GENERAL_PIN(PIN_MIPIRX2P, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x180, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc4c),
++	CV1800_GENERAL_PIN(PIN_MIPIRX1N, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x184, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc50),
++	CV1800_GENERAL_PIN(PIN_MIPIRX1P, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x188, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc54),
++	CV1800_GENERAL_PIN(PIN_MIPIRX0N, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x18c, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc58),
++	CV1800_GENERAL_PIN(PIN_MIPIRX0P, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x190, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc5c),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM2, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1a4, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc70),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP2, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1a8, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc74),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM1, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1ac, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc78),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP1, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1b0, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc7c),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXM0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1b4, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc80),
++	CV1800_GENERAL_PIN(PIN_MIPI_TXP0, VDD18A_MIPI,
++			   IO_TYPE_1V8_ONLY,
++			   CV1800_PINCONF_AREA_SYS, 0x1b8, 7,
++			   CV1800_PINCONF_AREA_SYS, 0xc84),
++};
++
++static const struct cv1800_pinctrl_data sg2002_pindata = {
++	.pins		= sg2002_pins,
++	.pindata	= sg2002_pin_data,
++	.pdnames	= sg2002_power_domain_desc,
++	.vddio_ops	= &sg2002_vddio_cfg_ops,
++	.npins		= ARRAY_SIZE(sg2002_pins),
++	.npd		= ARRAY_SIZE(sg2002_power_domain_desc),
++};
++
++static const struct of_device_id sg2002_pinctrl_ids[] = {
++	{ .compatible = "sophgo,sg2002-pinctrl", .data = &sg2002_pindata },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, sg2002_pinctrl_ids);
++
++static struct platform_driver sg2002_pinctrl_driver = {
++	.probe	= cv1800_pinctrl_probe,
++	.driver	= {
++		.name			= "sg2002-pinctrl",
++		.suppress_bind_attrs	= true,
++		.of_match_table		= sg2002_pinctrl_ids,
++	},
++};
++module_platform_driver(sg2002_pinctrl_driver);
++
++MODULE_DESCRIPTION("Pinctrl driver for the SG2002 series SoC");
++MODULE_LICENSE("GPL");
+diff --git a/include/dt-bindings/pinctrl/pinctrl-cv1800b.h b/include/dt-bindings/pinctrl/pinctrl-cv1800b.h
+new file mode 100644
+index 000000000000..0593fc33d470
+--- /dev/null
++++ b/include/dt-bindings/pinctrl/pinctrl-cv1800b.h
+@@ -0,0 +1,63 @@
++/* SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause */
++/*
++ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
++ *
++ * This file is generated from vendor pinout definition.
++ */
++
++#ifndef _DT_BINDINGS_PINCTRL_CV1800B_H
++#define _DT_BINDINGS_PINCTRL_CV1800B_H
++
++#include <dt-bindings/pinctrl/pinctrl-cv18xx.h>
++
++#define PIN_AUD_AOUTR			1
++#define PIN_SD0_CLK			3
++#define PIN_SD0_CMD			4
++#define PIN_SD0_D0			5
++#define PIN_SD0_D1			7
++#define PIN_SD0_D2			8
++#define PIN_SD0_D3			9
++#define PIN_SD0_CD			11
++#define PIN_SD0_PWR_EN			12
++#define PIN_SPK_EN			14
++#define PIN_UART0_TX			15
++#define PIN_UART0_RX			16
++#define PIN_SPINOR_HOLD_X		17
++#define PIN_SPINOR_SCK			18
++#define PIN_SPINOR_MOSI			19
++#define PIN_SPINOR_WP_X			20
++#define PIN_SPINOR_MISO			21
++#define PIN_SPINOR_CS_X			22
++#define PIN_IIC0_SCL			23
++#define PIN_IIC0_SDA			24
++#define PIN_AUX0			25
++#define PIN_PWR_VBAT_DET		30
++#define PIN_PWR_SEQ2			31
++#define PIN_XTAL_XIN			33
++#define PIN_SD1_GPIO0			35
++#define PIN_SD1_GPIO1			36
++#define PIN_SD1_D3			38
++#define PIN_SD1_D2			39
++#define PIN_SD1_D1			40
++#define PIN_SD1_D0			41
++#define PIN_SD1_CMD			42
++#define PIN_SD1_CLK			43
++#define PIN_ADC1			44
++#define PIN_USB_VBUS_DET		45
++#define PIN_ETH_TXP			47
++#define PIN_ETH_TXM			48
++#define PIN_ETH_RXP			49
++#define PIN_ETH_RXM			50
++#define PIN_MIPIRX4N			56
++#define PIN_MIPIRX4P			57
++#define PIN_MIPIRX3N			58
++#define PIN_MIPIRX3P			59
++#define PIN_MIPIRX2N			60
++#define PIN_MIPIRX2P			61
++#define PIN_MIPIRX1N			62
++#define PIN_MIPIRX1P			63
++#define PIN_MIPIRX0N			64
++#define PIN_MIPIRX0P			65
++#define PIN_AUD_AINL_MIC		67
++
++#endif /* _DT_BINDINGS_PINCTRL_CV1800B_H */
+diff --git a/include/dt-bindings/pinctrl/pinctrl-cv1812h.h b/include/dt-bindings/pinctrl/pinctrl-cv1812h.h
+new file mode 100644
+index 000000000000..2908de347919
+--- /dev/null
++++ b/include/dt-bindings/pinctrl/pinctrl-cv1812h.h
+@@ -0,0 +1,127 @@
++/* SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause */
++/*
++ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
++ *
++ * This file is generated from vendor pinout definition.
++ */
++
++#ifndef _DT_BINDINGS_PINCTRL_CV1812H_H
++#define _DT_BINDINGS_PINCTRL_CV1812H_H
++
++#include <dt-bindings/pinctrl/pinctrl-cv18xx.h>
++
++#define PINPOS(row, col)			\
++	((((row) - 'A' + 1) << 8) + ((col) - 1))
++
++#define PIN_MIPI_TXM4			PINPOS('A', 2)
++#define PIN_MIPIRX0N			PINPOS('A', 4)
++#define PIN_MIPIRX3P			PINPOS('A', 6)
++#define PIN_MIPIRX4P			PINPOS('A', 7)
++#define PIN_VIVO_D2			PINPOS('A', 9)
++#define PIN_VIVO_D3			PINPOS('A', 10)
++#define PIN_VIVO_D10			PINPOS('A', 12)
++#define PIN_USB_VBUS_DET		PINPOS('A', 13)
++#define PIN_MIPI_TXP3			PINPOS('B', 1)
++#define PIN_MIPI_TXM3			PINPOS('B', 2)
++#define PIN_MIPI_TXP4			PINPOS('B', 3)
++#define PIN_MIPIRX0P			PINPOS('B', 4)
++#define PIN_MIPIRX1N			PINPOS('B', 5)
++#define PIN_MIPIRX2N			PINPOS('B', 6)
++#define PIN_MIPIRX4N			PINPOS('B', 7)
++#define PIN_MIPIRX5N			PINPOS('B', 8)
++#define PIN_VIVO_D1			PINPOS('B', 9)
++#define PIN_VIVO_D5			PINPOS('B', 10)
++#define PIN_VIVO_D7			PINPOS('B', 11)
++#define PIN_VIVO_D9			PINPOS('B', 12)
++#define PIN_USB_ID			PINPOS('B', 13)
++#define PIN_ETH_RXM			PINPOS('B', 15)
++#define PIN_MIPI_TXP2			PINPOS('C', 1)
++#define PIN_MIPI_TXM2			PINPOS('C', 2)
++#define PIN_CAM_PD0			PINPOS('C', 3)
++#define PIN_CAM_MCLK0			PINPOS('C', 4)
++#define PIN_MIPIRX1P			PINPOS('C', 5)
++#define PIN_MIPIRX2P			PINPOS('C', 6)
++#define PIN_MIPIRX3N			PINPOS('C', 7)
++#define PIN_MIPIRX5P			PINPOS('C', 8)
++#define PIN_VIVO_CLK			PINPOS('C', 9)
++#define PIN_VIVO_D6			PINPOS('C', 10)
++#define PIN_VIVO_D8			PINPOS('C', 11)
++#define PIN_USB_VBUS_EN			PINPOS('C', 12)
++#define PIN_ETH_RXP			PINPOS('C', 14)
++#define PIN_GPIO_RTX			PINPOS('C', 15)
++#define PIN_MIPI_TXP1			PINPOS('D', 1)
++#define PIN_MIPI_TXM1			PINPOS('D', 2)
++#define PIN_CAM_MCLK1			PINPOS('D', 3)
++#define PIN_IIC3_SCL			PINPOS('D', 4)
++#define PIN_VIVO_D4			PINPOS('D', 10)
++#define PIN_ETH_TXM			PINPOS('D', 14)
++#define PIN_ETH_TXP			PINPOS('D', 15)
++#define PIN_MIPI_TXP0			PINPOS('E', 1)
++#define PIN_MIPI_TXM0			PINPOS('E', 2)
++#define PIN_CAM_PD1			PINPOS('E', 4)
++#define PIN_CAM_RST0			PINPOS('E', 5)
++#define PIN_VIVO_D0			PINPOS('E', 10)
++#define PIN_ADC1			PINPOS('E', 13)
++#define PIN_ADC2			PINPOS('E', 14)
++#define PIN_ADC3			PINPOS('E', 15)
++#define PIN_AUD_AOUTL			PINPOS('F', 2)
++#define PIN_IIC3_SDA			PINPOS('F', 4)
++#define PIN_SD1_D2			PINPOS('F', 14)
++#define PIN_AUD_AOUTR			PINPOS('G', 2)
++#define PIN_SD1_D3			PINPOS('G', 13)
++#define PIN_SD1_CLK			PINPOS('G', 14)
++#define PIN_SD1_CMD			PINPOS('G', 15)
++#define PIN_AUD_AINL_MIC		PINPOS('H', 1)
++#define PIN_RSTN			PINPOS('H', 12)
++#define PIN_PWM0_BUCK			PINPOS('H', 13)
++#define PIN_SD1_D1			PINPOS('H', 14)
++#define PIN_SD1_D0			PINPOS('H', 15)
++#define PIN_AUD_AINR_MIC		PINPOS('J', 1)
++#define PIN_IIC2_SCL			PINPOS('J', 13)
++#define PIN_IIC2_SDA			PINPOS('J', 14)
++#define PIN_SD0_CD			PINPOS('K', 2)
++#define PIN_SD0_D1			PINPOS('K', 3)
++#define PIN_UART2_RX			PINPOS('K', 13)
++#define PIN_UART2_CTS			PINPOS('K', 14)
++#define PIN_UART2_TX			PINPOS('K', 15)
++#define PIN_SD0_CLK			PINPOS('L', 1)
++#define PIN_SD0_D0			PINPOS('L', 2)
++#define PIN_SD0_CMD			PINPOS('L', 3)
++#define PIN_CLK32K			PINPOS('L', 14)
++#define PIN_UART2_RTS			PINPOS('L', 15)
++#define PIN_SD0_D3			PINPOS('M', 1)
++#define PIN_SD0_D2			PINPOS('M', 2)
++#define PIN_UART0_RX			PINPOS('M', 4)
++#define PIN_UART0_TX			PINPOS('M', 5)
++#define PIN_JTAG_CPU_TRST		PINPOS('M', 6)
++#define PIN_PWR_ON			PINPOS('M', 11)
++#define PIN_PWR_GPIO2			PINPOS('M', 12)
++#define PIN_PWR_GPIO0			PINPOS('M', 13)
++#define PIN_CLK25M			PINPOS('M', 14)
++#define PIN_SD0_PWR_EN			PINPOS('N', 1)
++#define PIN_SPK_EN			PINPOS('N', 3)
++#define PIN_JTAG_CPU_TCK		PINPOS('N', 4)
++#define PIN_JTAG_CPU_TMS		PINPOS('N', 6)
++#define PIN_PWR_WAKEUP1			PINPOS('N', 11)
++#define PIN_PWR_WAKEUP0			PINPOS('N', 12)
++#define PIN_PWR_GPIO1			PINPOS('N', 13)
++#define PIN_EMMC_DAT3			PINPOS('P', 1)
++#define PIN_EMMC_DAT0			PINPOS('P', 2)
++#define PIN_EMMC_DAT2			PINPOS('P', 3)
++#define PIN_EMMC_RSTN			PINPOS('P', 4)
++#define PIN_AUX0			PINPOS('P', 5)
++#define PIN_IIC0_SDA			PINPOS('P', 6)
++#define PIN_PWR_SEQ3			PINPOS('P', 10)
++#define PIN_PWR_VBAT_DET		PINPOS('P', 11)
++#define PIN_PWR_SEQ1			PINPOS('P', 12)
++#define PIN_PWR_BUTTON1			PINPOS('P', 13)
++#define PIN_EMMC_DAT1			PINPOS('R', 2)
++#define PIN_EMMC_CMD			PINPOS('R', 3)
++#define PIN_EMMC_CLK			PINPOS('R', 4)
++#define PIN_IIC0_SCL			PINPOS('R', 6)
++#define PIN_GPIO_ZQ			PINPOS('R', 10)
++#define PIN_PWR_RSTN			PINPOS('R', 11)
++#define PIN_PWR_SEQ2			PINPOS('R', 12)
++#define PIN_XTAL_XIN			PINPOS('R', 13)
++
++#endif /* _DT_BINDINGS_PINCTRL_CV1812H_H */
+diff --git a/include/dt-bindings/pinctrl/pinctrl-cv18xx.h b/include/dt-bindings/pinctrl/pinctrl-cv18xx.h
+new file mode 100644
+index 000000000000..bc92ad1067ec
+--- /dev/null
++++ b/include/dt-bindings/pinctrl/pinctrl-cv18xx.h
+@@ -0,0 +1,19 @@
++/* SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause */
++/*
++ * Copyright (C) 2023 Sophgo Ltd.
++ *
++ * Author: Inochi Amaoto <inochiama@outlook.com>
++ */
++
++#ifndef _DT_BINDINGS_PINCTRL_CV18XX_H
++#define _DT_BINDINGS_PINCTRL_CV18XX_H
++
++#define PIN_MUX_INVALD				0xff
++
++#define PINMUX2(pin, mux, mux2)	\
++	(((pin) & 0xffff) | (((mux) & 0xff) << 16) | (((mux2) & 0xff) << 24))
++
++#define PINMUX(pin, mux) \
++	PINMUX2(pin, mux, PIN_MUX_INVALD)
++
++#endif /* _DT_BINDINGS_PINCTRL_CV18XX_H */
+diff --git a/include/dt-bindings/pinctrl/pinctrl-sg2000.h b/include/dt-bindings/pinctrl/pinctrl-sg2000.h
+new file mode 100644
+index 000000000000..4871f9a7c6c1
+--- /dev/null
++++ b/include/dt-bindings/pinctrl/pinctrl-sg2000.h
+@@ -0,0 +1,127 @@
++/* SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause */
++/*
++ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
++ *
++ * This file is generated from vendor pinout definition.
++ */
++
++#ifndef _DT_BINDINGS_PINCTRL_SG2000_H
++#define _DT_BINDINGS_PINCTRL_SG2000_H
++
++#include <dt-bindings/pinctrl/pinctrl-cv18xx.h>
++
++#define PINPOS(row, col)			\
++	((((row) - 'A' + 1) << 8) + ((col) - 1))
++
++#define PIN_MIPI_TXM4			PINPOS('A', 2)
++#define PIN_MIPIRX0N			PINPOS('A', 4)
++#define PIN_MIPIRX3P			PINPOS('A', 6)
++#define PIN_MIPIRX4P			PINPOS('A', 7)
++#define PIN_VIVO_D2			PINPOS('A', 9)
++#define PIN_VIVO_D3			PINPOS('A', 10)
++#define PIN_VIVO_D10			PINPOS('A', 12)
++#define PIN_USB_VBUS_DET		PINPOS('A', 13)
++#define PIN_MIPI_TXP3			PINPOS('B', 1)
++#define PIN_MIPI_TXM3			PINPOS('B', 2)
++#define PIN_MIPI_TXP4			PINPOS('B', 3)
++#define PIN_MIPIRX0P			PINPOS('B', 4)
++#define PIN_MIPIRX1N			PINPOS('B', 5)
++#define PIN_MIPIRX2N			PINPOS('B', 6)
++#define PIN_MIPIRX4N			PINPOS('B', 7)
++#define PIN_MIPIRX5N			PINPOS('B', 8)
++#define PIN_VIVO_D1			PINPOS('B', 9)
++#define PIN_VIVO_D5			PINPOS('B', 10)
++#define PIN_VIVO_D7			PINPOS('B', 11)
++#define PIN_VIVO_D9			PINPOS('B', 12)
++#define PIN_USB_ID			PINPOS('B', 13)
++#define PIN_ETH_RXM			PINPOS('B', 15)
++#define PIN_MIPI_TXP2			PINPOS('C', 1)
++#define PIN_MIPI_TXM2			PINPOS('C', 2)
++#define PIN_CAM_PD0			PINPOS('C', 3)
++#define PIN_CAM_MCLK0			PINPOS('C', 4)
++#define PIN_MIPIRX1P			PINPOS('C', 5)
++#define PIN_MIPIRX2P			PINPOS('C', 6)
++#define PIN_MIPIRX3N			PINPOS('C', 7)
++#define PIN_MIPIRX5P			PINPOS('C', 8)
++#define PIN_VIVO_CLK			PINPOS('C', 9)
++#define PIN_VIVO_D6			PINPOS('C', 10)
++#define PIN_VIVO_D8			PINPOS('C', 11)
++#define PIN_USB_VBUS_EN			PINPOS('C', 12)
++#define PIN_ETH_RXP			PINPOS('C', 14)
++#define PIN_GPIO_RTX			PINPOS('C', 15)
++#define PIN_MIPI_TXP1			PINPOS('D', 1)
++#define PIN_MIPI_TXM1			PINPOS('D', 2)
++#define PIN_CAM_MCLK1			PINPOS('D', 3)
++#define PIN_IIC3_SCL			PINPOS('D', 4)
++#define PIN_VIVO_D4			PINPOS('D', 10)
++#define PIN_ETH_TXM			PINPOS('D', 14)
++#define PIN_ETH_TXP			PINPOS('D', 15)
++#define PIN_MIPI_TXP0			PINPOS('E', 1)
++#define PIN_MIPI_TXM0			PINPOS('E', 2)
++#define PIN_CAM_PD1			PINPOS('E', 4)
++#define PIN_CAM_RST0			PINPOS('E', 5)
++#define PIN_VIVO_D0			PINPOS('E', 10)
++#define PIN_ADC1			PINPOS('E', 13)
++#define PIN_ADC2			PINPOS('E', 14)
++#define PIN_ADC3			PINPOS('E', 15)
++#define PIN_AUD_AOUTL			PINPOS('F', 2)
++#define PIN_IIC3_SDA			PINPOS('F', 4)
++#define PIN_SD1_D2			PINPOS('F', 14)
++#define PIN_AUD_AOUTR			PINPOS('G', 2)
++#define PIN_SD1_D3			PINPOS('G', 13)
++#define PIN_SD1_CLK			PINPOS('G', 14)
++#define PIN_SD1_CMD			PINPOS('G', 15)
++#define PIN_AUD_AINL_MIC		PINPOS('H', 1)
++#define PIN_RSTN			PINPOS('H', 12)
++#define PIN_PWM0_BUCK			PINPOS('H', 13)
++#define PIN_SD1_D1			PINPOS('H', 14)
++#define PIN_SD1_D0			PINPOS('H', 15)
++#define PIN_AUD_AINR_MIC		PINPOS('J', 1)
++#define PIN_IIC2_SCL			PINPOS('J', 13)
++#define PIN_IIC2_SDA			PINPOS('J', 14)
++#define PIN_SD0_CD			PINPOS('K', 2)
++#define PIN_SD0_D1			PINPOS('K', 3)
++#define PIN_UART2_RX			PINPOS('K', 13)
++#define PIN_UART2_CTS			PINPOS('K', 14)
++#define PIN_UART2_TX			PINPOS('K', 15)
++#define PIN_SD0_CLK			PINPOS('L', 1)
++#define PIN_SD0_D0			PINPOS('L', 2)
++#define PIN_SD0_CMD			PINPOS('L', 3)
++#define PIN_CLK32K			PINPOS('L', 14)
++#define PIN_UART2_RTS			PINPOS('L', 15)
++#define PIN_SD0_D3			PINPOS('M', 1)
++#define PIN_SD0_D2			PINPOS('M', 2)
++#define PIN_UART0_RX			PINPOS('M', 4)
++#define PIN_UART0_TX			PINPOS('M', 5)
++#define PIN_JTAG_CPU_TRST		PINPOS('M', 6)
++#define PIN_PWR_ON			PINPOS('M', 11)
++#define PIN_PWR_GPIO2			PINPOS('M', 12)
++#define PIN_PWR_GPIO0			PINPOS('M', 13)
++#define PIN_CLK25M			PINPOS('M', 14)
++#define PIN_SD0_PWR_EN			PINPOS('N', 1)
++#define PIN_SPK_EN			PINPOS('N', 3)
++#define PIN_JTAG_CPU_TCK		PINPOS('N', 4)
++#define PIN_JTAG_CPU_TMS		PINPOS('N', 6)
++#define PIN_PWR_WAKEUP1			PINPOS('N', 11)
++#define PIN_PWR_WAKEUP0			PINPOS('N', 12)
++#define PIN_PWR_GPIO1			PINPOS('N', 13)
++#define PIN_EMMC_DAT3			PINPOS('P', 1)
++#define PIN_EMMC_DAT0			PINPOS('P', 2)
++#define PIN_EMMC_DAT2			PINPOS('P', 3)
++#define PIN_EMMC_RSTN			PINPOS('P', 4)
++#define PIN_AUX0			PINPOS('P', 5)
++#define PIN_IIC0_SDA			PINPOS('P', 6)
++#define PIN_PWR_SEQ3			PINPOS('P', 10)
++#define PIN_PWR_VBAT_DET		PINPOS('P', 11)
++#define PIN_PWR_SEQ1			PINPOS('P', 12)
++#define PIN_PWR_BUTTON1			PINPOS('P', 13)
++#define PIN_EMMC_DAT1			PINPOS('R', 2)
++#define PIN_EMMC_CMD			PINPOS('R', 3)
++#define PIN_EMMC_CLK			PINPOS('R', 4)
++#define PIN_IIC0_SCL			PINPOS('R', 6)
++#define PIN_GPIO_ZQ			PINPOS('R', 10)
++#define PIN_PWR_RSTN			PINPOS('R', 11)
++#define PIN_PWR_SEQ2			PINPOS('R', 12)
++#define PIN_XTAL_XIN			PINPOS('R', 13)
++
++#endif /* _DT_BINDINGS_PINCTRL_SG2000_H */
+diff --git a/include/dt-bindings/pinctrl/pinctrl-sg2002.h b/include/dt-bindings/pinctrl/pinctrl-sg2002.h
+new file mode 100644
+index 000000000000..3c36cfa0a550
+--- /dev/null
++++ b/include/dt-bindings/pinctrl/pinctrl-sg2002.h
+@@ -0,0 +1,79 @@
++/* SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause */
++/*
++ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
++ *
++ * This file is generated from vendor pinout definition.
++ */
++
++#ifndef _DT_BINDINGS_PINCTRL_SG2002_H
++#define _DT_BINDINGS_PINCTRL_SG2002_H
++
++#include <dt-bindings/pinctrl/pinctrl-cv18xx.h>
++
++#define PIN_AUD_AINL_MIC		2
++#define PIN_AUD_AOUTR			4
++#define PIN_SD0_CLK			6
++#define PIN_SD0_CMD			7
++#define PIN_SD0_D0			8
++#define PIN_SD0_D1			10
++#define PIN_SD0_D2			11
++#define PIN_SD0_D3			12
++#define PIN_SD0_CD			14
++#define PIN_SD0_PWR_EN			15
++#define PIN_SPK_EN			17
++#define PIN_UART0_TX			18
++#define PIN_UART0_RX			19
++#define PIN_EMMC_DAT2			20
++#define PIN_EMMC_CLK			21
++#define PIN_EMMC_DAT0			22
++#define PIN_EMMC_DAT3			23
++#define PIN_EMMC_CMD			24
++#define PIN_EMMC_DAT1			25
++#define PIN_JTAG_CPU_TMS		26
++#define PIN_JTAG_CPU_TCK		27
++#define PIN_IIC0_SCL			28
++#define PIN_IIC0_SDA			29
++#define PIN_AUX0			30
++#define PIN_GPIO_ZQ			35
++#define PIN_PWR_VBAT_DET		38
++#define PIN_PWR_RSTN			39
++#define PIN_PWR_SEQ1			40
++#define PIN_PWR_SEQ2			41
++#define PIN_PWR_WAKEUP0			43
++#define PIN_PWR_BUTTON1			44
++#define PIN_XTAL_XIN			45
++#define PIN_PWR_GPIO0			47
++#define PIN_PWR_GPIO1			48
++#define PIN_PWR_GPIO2			49
++#define PIN_SD1_D3			51
++#define PIN_SD1_D2			52
++#define PIN_SD1_D1			53
++#define PIN_SD1_D0			54
++#define PIN_SD1_CMD			55
++#define PIN_SD1_CLK			56
++#define PIN_PWM0_BUCK			58
++#define PIN_ADC1			59
++#define PIN_USB_VBUS_DET		60
++#define PIN_ETH_TXP			62
++#define PIN_ETH_TXM			63
++#define PIN_ETH_RXP			64
++#define PIN_ETH_RXM			65
++#define PIN_GPIO_RTX			67
++#define PIN_MIPIRX4N			72
++#define PIN_MIPIRX4P			73
++#define PIN_MIPIRX3N			74
++#define PIN_MIPIRX3P			75
++#define PIN_MIPIRX2N			76
++#define PIN_MIPIRX2P			77
++#define PIN_MIPIRX1N			78
++#define PIN_MIPIRX1P			79
++#define PIN_MIPIRX0N			80
++#define PIN_MIPIRX0P			81
++#define PIN_MIPI_TXM2			83
++#define PIN_MIPI_TXP2			84
++#define PIN_MIPI_TXM1			85
++#define PIN_MIPI_TXP1			86
++#define PIN_MIPI_TXM0			87
++#define PIN_MIPI_TXP0			88
++
++#endif /* _DT_BINDINGS_PINCTRL_SG2002_H */
+diff --git a/include/linux/pinctrl/pinconf-generic.h b/include/linux/pinctrl/pinconf-generic.h
+index a65d3d078e58..53cfde98433d 100644
+--- a/include/linux/pinctrl/pinconf-generic.h
++++ b/include/linux/pinctrl/pinconf-generic.h
+@@ -81,6 +81,8 @@ struct pinctrl_map;
+  * @PIN_CONFIG_INPUT_SCHMITT_ENABLE: control schmitt-trigger mode on the pin.
+  *      If the argument != 0, schmitt-trigger mode is enabled. If it's 0,
+  *      schmitt-trigger mode is disabled.
++ * @PIN_CONFIG_INPUT_SCHMITT_UV: this will configure an input pin to run in
++ *	schmitt-trigger mode. The argument is in uV.
+  * @PIN_CONFIG_MODE_LOW_POWER: this will configure the pin for low power
+  *	operation, if several modes of operation are supported these can be
+  *	passed in the argument on a custom form, else just use argument 1
+@@ -132,6 +134,7 @@ enum pin_config_param {
+ 	PIN_CONFIG_INPUT_ENABLE,
+ 	PIN_CONFIG_INPUT_SCHMITT,
+ 	PIN_CONFIG_INPUT_SCHMITT_ENABLE,
++	PIN_CONFIG_INPUT_SCHMITT_UV,
+ 	PIN_CONFIG_MODE_LOW_POWER,
+ 	PIN_CONFIG_MODE_PWM,
+ 	PIN_CONFIG_OUTPUT,
+-- 
+2.34.1
+

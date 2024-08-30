@@ -1,0 +1,159 @@
+From 8fb4de205c268c2ccef563eb3fc33483e4278c84 Mon Sep 17 00:00:00 2001
+From: GP Orcullo <kinsamanka@gmail.com>
+Date: Fri, 30 Aug 2024 03:44:00 +0000
+Subject: [PATCH 1/1] dt: add gpio-led
+
+Upstream-Status: Pending
+---
+ .../boot/dts/sophgo/cv1800b-milkv-duo.dts     | 23 +++++++++++++++++++
+ .../dts/sophgo/cv1812h-milkv-duo-256m.dts     | 23 +++++++++++++++++++
+ .../boot/dts/sophgo/cv1812h-milkv-duo-s.dts   | 23 +++++++++++++++++++
+ 3 files changed, 69 insertions(+)
+
+diff --git a/arch/riscv/boot/dts/sophgo/cv1800b-milkv-duo.dts b/arch/riscv/boot/dts/sophgo/cv1800b-milkv-duo.dts
+index 6d53e4c52561..002cc183628e 100644
+--- a/arch/riscv/boot/dts/sophgo/cv1800b-milkv-duo.dts
++++ b/arch/riscv/boot/dts/sophgo/cv1800b-milkv-duo.dts
+@@ -6,6 +6,7 @@
+ /dts-v1/;
+ 
+ #include "cv1800b.dtsi"
++#include "dt-bindings/leds/common.h"
+ 
+ / {
+ 	model = "Milk-V Duo";
+@@ -39,6 +40,19 @@ opensbi {
+ 			no-map;
+ 		};
+ 	};
++
++	leds {
++		compatible = "gpio-leds";
++		pinctrl-names = "default";
++		pinctrl-0 = <&led_cfg>;
++
++		led0 {
++			gpios = <&portc 24 GPIO_ACTIVE_HIGH>;
++			linux,default-trigger = "heartbeat";
++			function = LED_FUNCTION_HEARTBEAT;
++			label = "blue";
++		};
++	};
+ };
+ 
+ &osc {
+@@ -46,6 +60,15 @@ &osc {
+ };
+ 
+ &pinctrl {
++	led_cfg: led-cfg {
++		led-pins {
++			pinmux = <PINMUX(PIN_AUD_AOUTR, 3)>;
++			bias-pull-down;
++			drive-strength-microamp = <12800>;
++			power-source = <1800>;
++		};
++	};
++
+ 	uart0_cfg: uart0-cfg {
+ 		uart0-pins {
+ 			pinmux = <PINMUX(PIN_UART0_TX, 0)>,
+diff --git a/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-256m.dts b/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-256m.dts
+index f6d27ac1b580..9098caf3f19b 100644
+--- a/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-256m.dts
++++ b/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-256m.dts
+@@ -6,6 +6,7 @@
+ /dts-v1/;
+ 
+ #include "cv1812h.dtsi"
++#include "dt-bindings/leds/common.h"
+ 
+ / {
+ 	model = "Milk-V Duo 256M";
+@@ -30,6 +31,19 @@ opensbi {
+ 			no-map;
+ 		};
+ 	};
++
++	leds {
++		compatible = "gpio-leds";
++		pinctrl-names = "default";
++		pinctrl-0 = <&led_cfg>;
++
++		led0 {
++			gpios = <&porte 2 GPIO_ACTIVE_HIGH>;
++			linux,default-trigger = "heartbeat";
++			function = LED_FUNCTION_HEARTBEAT;
++			label = "blue";
++		};
++	};
+ };
+ 
+ &osc {
+@@ -37,6 +51,15 @@ &osc {
+ };
+ 
+ &pinctrl {
++	led_cfg: led-cfg {
++		led-pins {
++			pinmux = <PINMUX(PIN_PWR_GPIO2, 0)>;
++			bias-pull-down;
++			drive-strength-microamp = <12800>;
++			power-source = <1800>;
++		};
++	};
++
+ 	uart0_cfg: uart0-cfg {
+ 		uart0-pins {
+ 			pinmux = <PINMUX(PIN_UART0_TX, 0)>,
+diff --git a/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-s.dts b/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-s.dts
+index 3a33460521fb..d9a240b717bd 100644
+--- a/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-s.dts
++++ b/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-s.dts
+@@ -6,6 +6,7 @@
+ /dts-v1/;
+ 
+ #include "cv1812h.dtsi"
++#include "dt-bindings/leds/common.h"
+ 
+ / {
+ 	model = "Milk-V Duo S";
+@@ -35,6 +36,19 @@ opensbi {
+ 			no-map;
+ 		};
+ 	};
++
++	leds {
++		compatible = "gpio-leds";
++		pinctrl-names = "default";
++		pinctrl-0 = <&led_cfg>;
++
++		led0 {
++			gpios = <&porta 29 GPIO_ACTIVE_HIGH>;
++			linux,default-trigger = "heartbeat";
++			function = LED_FUNCTION_HEARTBEAT;
++			label = "blue";
++		};
++	};
+ };
+ 
+ &osc {
+@@ -52,6 +66,15 @@ emac-leds {
+ 		};
+ 	};
+ 
++	led_cfg: led-cfg {
++		led-pins {
++			pinmux = <PINMUX(PIN_IIC0_SDA, 3)>;
++			bias-pull-down;
++			drive-strength-microamp = <10800>;
++			power-source = <3300>;
++		};
++	};
++
+ 	uart0_cfg: uart0-cfg {
+ 		uart0-pins {
+ 			pinmux = <PINMUX(PIN_UART0_TX, 0)>,
+-- 
+2.34.1
+

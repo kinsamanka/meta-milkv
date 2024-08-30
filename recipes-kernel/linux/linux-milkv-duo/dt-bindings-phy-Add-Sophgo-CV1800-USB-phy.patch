@@ -1,0 +1,592 @@
+From 4df1578c55cb01be841c42d017ff5f63cb6d8c88 Mon Sep 17 00:00:00 2001
+From: Inochi Amaoto <inochiama@outlook.com>
+Date: Sun, 5 May 2024 09:52:15 +0800
+Subject: [PATCH 1/2] dt-bindings: phy: Add Sophgo CV1800 USB phy
+
+The USB phy of Sophgo CV18XX series SoC needs to sense a pin called
+"VBUS_DET" to get the right operation mode. If this pin is not
+connected, it only supports setting the mode manually.
+
+Add USB phy bindings for Sophgo CV18XX/SG200X series SoC.
+
+Signed-off-by: Inochi Amaoto <inochiama@outlook.com>
+
+phy: sophgo: Add USB 2.0 PHY driver for Sophgo CV18XX/SG200X
+
+Add USB 2.0 PHY driver for Sophgo CV18XX/SG200X.
+
+Signed-off-by: Inochi Amaoto <inochiama@outlook.com>
+
+Upstream-Status: Submitted
+---
+ .../bindings/phy/sophgo,cv1800-usb-phy.yaml   |  71 ++++
+ drivers/phy/Kconfig                           |   1 +
+ drivers/phy/Makefile                          |   1 +
+ drivers/phy/sophgo/Kconfig                    |  19 +
+ drivers/phy/sophgo/Makefile                   |   2 +
+ drivers/phy/sophgo/phy-cv1800-usb.c           | 378 ++++++++++++++++++
+ include/soc/sophgo/cv1800-sysctl.h            |  30 ++
+ 7 files changed, 502 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/phy/sophgo,cv1800-usb-phy.yaml
+ create mode 100644 drivers/phy/sophgo/Kconfig
+ create mode 100644 drivers/phy/sophgo/Makefile
+ create mode 100644 drivers/phy/sophgo/phy-cv1800-usb.c
+ create mode 100644 include/soc/sophgo/cv1800-sysctl.h
+
+diff --git a/Documentation/devicetree/bindings/phy/sophgo,cv1800-usb-phy.yaml b/Documentation/devicetree/bindings/phy/sophgo,cv1800-usb-phy.yaml
+new file mode 100644
+index 000000000000..ae17a8f91b0e
+--- /dev/null
++++ b/Documentation/devicetree/bindings/phy/sophgo,cv1800-usb-phy.yaml
+@@ -0,0 +1,71 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/phy/sophgo,cv1800-usb-phy.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: Sophgo CV18XX/SG200X USB 2.0 PHY
++
++maintainers:
++  - Inochi Amaoto <inochiama@outlook.com>
++
++properties:
++  compatible:
++    const: sophgo,cv1800-usb-phy
++
++  reg:
++    maxItems: 1
++
++  "#phy-cells":
++    const: 0
++
++  clocks:
++    items:
++      - description: PHY clock
++      - description: PHY app clock
++      - description: PHY stb clock
++      - description: PHY lpm clock
++
++  clock-names:
++    items:
++      - const: phy
++      - const: app
++      - const: stb
++      - const: lpm
++
++  vbus_det-gpios:
++    description: GPIO to the USB OTG VBUS detect pin. This should not be
++      defined if vbus_det pin and switch pin are connected, which may
++      break the VBUS detection.
++    maxItems: 1
++
++  sophgo,switch-gpios:
++    description: GPIO array for the phy to control connected switch. For
++      host mode, the driver will set these GPIOs to low one by one. For
++      device mode, the driver will set these GPIOs to high in reverse
++      order. For a reference design, see item description.
++    minItems: 1
++    items:
++      - description: USB switch operation mode
++      - description: USB switch host power control
++
++required:
++  - compatible
++  - "#phy-cells"
++  - clocks
++  - clock-names
++
++additionalProperties: false
++
++examples:
++  - |
++    phy@48 {
++      compatible = "sophgo,cv1800-usb-phy";
++      reg = <0x48 0x4>;
++      #phy-cells = <0>;
++      clocks = <&clk 92>, <&clk 93>,
++               <&clk 94>, <&clk 95>;
++      clock-names = "phy", "app", "stb", "lpm";
++    };
++
++...
+diff --git a/drivers/phy/Kconfig b/drivers/phy/Kconfig
+index 4cef568231bf..4ffe7eb714d1 100644
+--- a/drivers/phy/Kconfig
++++ b/drivers/phy/Kconfig
+@@ -91,6 +91,7 @@ source "drivers/phy/renesas/Kconfig"
+ source "drivers/phy/rockchip/Kconfig"
+ source "drivers/phy/samsung/Kconfig"
+ source "drivers/phy/socionext/Kconfig"
++source "drivers/phy/sophgo/Kconfig"
+ source "drivers/phy/st/Kconfig"
+ source "drivers/phy/starfive/Kconfig"
+ source "drivers/phy/sunplus/Kconfig"
+diff --git a/drivers/phy/Makefile b/drivers/phy/Makefile
+index fb3dc9de6111..1b709b8dd60f 100644
+--- a/drivers/phy/Makefile
++++ b/drivers/phy/Makefile
+@@ -30,6 +30,7 @@ obj-y					+= allwinner/	\
+ 					   rockchip/	\
+ 					   samsung/	\
+ 					   socionext/	\
++					   sophgo/	\
+ 					   st/		\
+ 					   starfive/	\
+ 					   sunplus/	\
+diff --git a/drivers/phy/sophgo/Kconfig b/drivers/phy/sophgo/Kconfig
+new file mode 100644
+index 000000000000..b1c558de6616
+--- /dev/null
++++ b/drivers/phy/sophgo/Kconfig
+@@ -0,0 +1,19 @@
++# SPDX-License-Identifier: GPL-2.0-only
++#
++# Phy drivers for Sophgo platforms
++#
++
++if ARCH_SOPHGO || COMPILE_TEST
++
++config PHY_SOPHGO_CV1800_USB
++	tristate "Sophgo CV18XX/SG200X USB 2.0 PHY support"
++	depends on MFD_SYSCON
++	depends on USB_SUPPORT
++	select GENERIC_PHY
++	help
++	  Enable this to support the USB 2.0 PHY used with
++	  the DWC2 USB controller in Sophgo CV18XX/SG200X
++	  series SoC.
++	  If unsure, say N.
++
++endif # ARCH_SOPHGO || COMPILE_TEST
+diff --git a/drivers/phy/sophgo/Makefile b/drivers/phy/sophgo/Makefile
+new file mode 100644
+index 000000000000..659537054cd4
+--- /dev/null
++++ b/drivers/phy/sophgo/Makefile
+@@ -0,0 +1,2 @@
++# SPDX-License-Identifier: GPL-2.0
++obj-$(CONFIG_PHY_SOPHGO_CV1800_USB)	+= phy-cv1800-usb.o
+diff --git a/drivers/phy/sophgo/phy-cv1800-usb.c b/drivers/phy/sophgo/phy-cv1800-usb.c
+new file mode 100644
+index 000000000000..bf1b86f7aa1a
+--- /dev/null
++++ b/drivers/phy/sophgo/phy-cv1800-usb.c
+@@ -0,0 +1,378 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/debugfs.h>
++#include <linux/gpio/consumer.h>
++#include <linux/kernel.h>
++#include <linux/mfd/syscon.h>
++#include <linux/module.h>
++#include <linux/of.h>
++#include <linux/of_address.h>
++#include <linux/of_gpio.h>
++#include <linux/platform_device.h>
++#include <linux/phy/phy.h>
++#include <linux/regmap.h>
++#include <linux/spinlock.h>
++#include <soc/sophgo/cv1800-sysctl.h>
++
++#define PHY_IDPAD_C_OW			BIT(6)
++#define PHY_IDPAD_C_SW			BIT(7)
++
++#define PHY_BASE_CLK_RATE		300000000
++#define PHY_APP_CLK_RATE		125000000
++#define PHY_LPM_CLK_RATE		12000000
++#define PHY_STB_CLK_RATE		333334
++
++#define PHY_VBUS_DET_DEBOUNCE_TIME	usecs_to_jiffies(100)
++
++struct cv1800_usb_phy {
++	struct phy *phy;
++	struct regmap *syscon;
++	spinlock_t lock;
++	struct clk *usb_phy_clk;
++	struct clk *usb_app_clk;
++	struct clk *usb_lpm_clk;
++	struct clk *usb_stb_clk;
++	struct gpio_descs *switch_gpios;
++	struct gpio_desc *vbus_det_gpio;
++	int vbus_det_irq;
++	struct delayed_work vbus_work;
++	bool enable_otg;
++};
++
++static int cv1800_usb_phy_set_idpad(struct cv1800_usb_phy *phy,
++				    bool is_host)
++{
++	unsigned long flags;
++	unsigned int regval = 0;
++	int ret;
++
++	if (is_host)
++		regval = PHY_IDPAD_C_OW;
++	else
++		regval = PHY_IDPAD_C_OW | PHY_IDPAD_C_SW;
++
++	spin_lock_irqsave(&phy->lock, flags);
++	ret = regmap_update_bits(phy->syscon, CV1800_USB_PHY_CTRL_REG,
++				 PHY_IDPAD_C_OW | PHY_IDPAD_C_SW,
++				 regval);
++	spin_unlock_irqrestore(&phy->lock, flags);
++
++	return ret;
++}
++
++static void cv1800_usb_phy_set_gpio(struct cv1800_usb_phy *phy,
++				    bool is_host)
++{
++	unsigned int i, ndescs;
++	struct gpio_desc **gpios;
++
++	if (!phy->switch_gpios)
++		return;
++
++	ndescs = phy->switch_gpios->ndescs;
++	gpios = phy->switch_gpios->desc;
++
++	if (is_host) {
++		for (i = 0; i < ndescs; i++)
++			gpiod_set_value_cansleep(gpios[i], 0);
++	} else {
++		for (i = 0; i < ndescs; i++)
++			gpiod_set_value_cansleep(gpios[ndescs - 1 - i], 1);
++	}
++}
++
++static int cv1800_usb_phy_set_mode_internal(struct cv1800_usb_phy *phy,
++					    bool is_host)
++{
++	int ret = cv1800_usb_phy_set_idpad(phy, is_host);
++
++	if (ret < 0)
++		return ret;
++
++	cv1800_usb_phy_set_gpio(phy, is_host);
++
++	return 0;
++}
++
++static ssize_t dr_mode_store(struct device *dev,
++			     struct device_attribute *attr,
++			     const char *buf, size_t len)
++{
++	struct cv1800_usb_phy *phy = dev_get_drvdata(dev);
++	bool is_host;
++
++	if (sysfs_streq(buf, "host")) {
++		phy->enable_otg = false;
++		is_host = true;
++	} else if (sysfs_streq(buf, "peripheral")) {
++		phy->enable_otg = false;
++		is_host = false;
++	} else if (sysfs_streq(buf, "otg") && phy->vbus_det_irq > 0) {
++		phy->enable_otg = true;
++	} else {
++		return -EINVAL;
++	}
++
++	if (phy->enable_otg)
++		queue_delayed_work(system_wq, &phy->vbus_work,
++				   PHY_VBUS_DET_DEBOUNCE_TIME);
++	else
++		cv1800_usb_phy_set_mode_internal(phy, is_host);
++
++	return len;
++}
++
++static ssize_t dr_mode_show(struct device *dev,
++			    struct device_attribute *attr,
++			    char *buf)
++{
++	struct cv1800_usb_phy *phy = dev_get_drvdata(dev);
++	unsigned long flags;
++	unsigned int regval;
++	bool is_host = true;
++	int ret;
++
++	spin_lock_irqsave(&phy->lock, flags);
++	ret = regmap_read(phy->syscon, CV1800_USB_PHY_CTRL_REG, &regval);
++	spin_unlock_irqrestore(&phy->lock, flags);
++
++	if (ret)
++		return ret;
++
++	if (regval & PHY_IDPAD_C_SW)
++		is_host = false;
++
++	return sprintf(buf, "%s%s\n",
++		       phy->enable_otg ? "otg: " : "",
++		       is_host ? "host" : "peripheral");
++}
++
++static DEVICE_ATTR_RW(dr_mode);
++
++static struct attribute *cv1800_usb_phy_attrs[] = {
++	&dev_attr_dr_mode.attr,
++	NULL
++};
++
++static const struct attribute_group cv1800_usb_phy_group = {
++	.attrs = cv1800_usb_phy_attrs,
++};
++
++static int cv1800_usb_phy_set_clock(struct cv1800_usb_phy *phy)
++{
++	int ret;
++
++	ret = clk_set_rate(phy->usb_phy_clk, PHY_BASE_CLK_RATE);
++	if (ret)
++		return ret;
++
++	ret = clk_set_rate(phy->usb_app_clk, PHY_APP_CLK_RATE);
++	if (ret)
++		return ret;
++
++	ret = clk_set_rate(phy->usb_lpm_clk, PHY_LPM_CLK_RATE);
++	if (ret)
++		return ret;
++
++	ret = clk_set_rate(phy->usb_stb_clk, PHY_STB_CLK_RATE);
++	if (ret)
++		return ret;
++
++	return 0;
++}
++
++static int cv1800_usb_phy_set_mode(struct phy *_phy,
++				   enum phy_mode mode, int submode)
++{
++	struct cv1800_usb_phy *phy = phy_get_drvdata(_phy);
++	bool is_host;
++
++	switch (mode) {
++	case PHY_MODE_USB_DEVICE:
++		is_host = false;
++		phy->enable_otg = false;
++		break;
++	case PHY_MODE_USB_HOST:
++		is_host = true;
++		phy->enable_otg = false;
++		break;
++	case PHY_MODE_USB_OTG:
++		/* phy only supports soft OTG when VBUS_DET pin is connected. */
++		if (phy->vbus_det_irq > 0) {
++			phy->enable_otg = true;
++			queue_delayed_work(system_wq, &phy->vbus_work,
++					   PHY_VBUS_DET_DEBOUNCE_TIME);
++		}
++		return 0;
++	default:
++		return -EINVAL;
++	}
++
++	return cv1800_usb_phy_set_mode_internal(phy, is_host);
++}
++
++static const struct phy_ops cv1800_usb_phy_ops = {
++	.set_mode	= cv1800_usb_phy_set_mode,
++	.owner		= THIS_MODULE,
++};
++
++static void cv1800_usb_phy_vbus_switch(struct work_struct *work)
++{
++	struct cv1800_usb_phy *phy =
++		container_of(work, struct cv1800_usb_phy, vbus_work.work);
++	int state = gpiod_get_value_cansleep(phy->vbus_det_gpio);
++
++	cv1800_usb_phy_set_mode_internal(phy, state == 0);
++}
++
++static irqreturn_t cv1800_usb_phy_vbus_det_irq(int irq, void *dev_id)
++{
++	struct cv1800_usb_phy *phy = dev_id;
++
++	if (phy->enable_otg)
++		queue_delayed_work(system_wq, &phy->vbus_work,
++				   PHY_VBUS_DET_DEBOUNCE_TIME);
++	return IRQ_HANDLED;
++}
++
++static void cv1800_usb_phy_init_mode(struct device *dev,
++				     struct cv1800_usb_phy *phy)
++{
++	phy->enable_otg = false;
++
++	if (phy->vbus_det_irq > 0)
++		phy->enable_otg = true;
++
++	if (phy->enable_otg)
++		queue_delayed_work(system_wq, &phy->vbus_work, 0);
++	else
++		cv1800_usb_phy_set_mode_internal(phy, true);
++}
++
++static int cv1800_usb_phy_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct device *parent = dev->parent;
++	struct cv1800_usb_phy *phy;
++	struct phy_provider *phy_provider;
++	int ret;
++
++	if (!parent)
++		return -ENODEV;
++
++	phy = devm_kmalloc(dev, sizeof(*phy), GFP_KERNEL);
++	if (!phy)
++		return -ENOMEM;
++
++	phy->syscon = syscon_node_to_regmap(parent->of_node);
++	if (IS_ERR_OR_NULL(phy->syscon))
++		return -ENODEV;
++
++	spin_lock_init(&phy->lock);
++
++	phy->usb_phy_clk = devm_clk_get_enabled(dev, "phy");
++	if (IS_ERR(phy->usb_phy_clk))
++		return dev_err_probe(dev, PTR_ERR(phy->usb_phy_clk),
++			"Failed to get phy clock\n");
++
++	phy->usb_app_clk = devm_clk_get_enabled(dev, "app");
++	if (IS_ERR(phy->usb_app_clk))
++		return dev_err_probe(dev, PTR_ERR(phy->usb_app_clk),
++			"Failed to get app clock\n");
++
++	phy->usb_lpm_clk = devm_clk_get_enabled(dev, "lpm");
++	if (IS_ERR(phy->usb_lpm_clk))
++		return dev_err_probe(dev, PTR_ERR(phy->usb_lpm_clk),
++			"Failed to get lpm clock\n");
++
++	phy->usb_stb_clk = devm_clk_get_enabled(dev, "stb");
++	if (IS_ERR(phy->usb_stb_clk))
++		return dev_err_probe(dev, PTR_ERR(phy->usb_stb_clk),
++			"Failed to get stb clock\n");
++
++	phy->phy = devm_phy_create(dev, NULL, &cv1800_usb_phy_ops);
++	if (IS_ERR(phy->phy))
++		return dev_err_probe(dev, PTR_ERR(phy->phy),
++			"Failed to create phy\n");
++
++	ret = cv1800_usb_phy_set_clock(phy);
++	if (ret)
++		return ret;
++
++	phy->switch_gpios = devm_gpiod_get_array_optional(dev, "sophgo,switch",
++							  GPIOD_OUT_LOW);
++	if (IS_ERR(phy->switch_gpios))
++		return dev_err_probe(dev, PTR_ERR(phy->switch_gpios),
++			"Failed to get switch pin\n");
++
++	phy->vbus_det_gpio = devm_gpiod_get_optional(dev, "vbus_det", GPIOD_IN);
++	if (IS_ERR(phy->vbus_det_gpio))
++		return dev_err_probe(dev, PTR_ERR(phy->vbus_det_gpio),
++			"Failed to process vbus pin\n");
++
++	phy->vbus_det_irq = gpiod_to_irq(phy->vbus_det_gpio);
++	if (phy->vbus_det_irq > 0) {
++		ret = devm_request_irq(dev, phy->vbus_det_irq,
++				       cv1800_usb_phy_vbus_det_irq,
++				       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
++				       "usb-vbus-det", phy);
++		if (ret)
++			return dev_err_probe(dev, ret,
++				"Failed to request vbus irq\n");
++	}
++
++	INIT_DELAYED_WORK(&phy->vbus_work, cv1800_usb_phy_vbus_switch);
++
++	ret = sysfs_create_group(&dev->kobj, &cv1800_usb_phy_group);
++	if (ret)
++		dev_warn(dev, "failed to create sysfs attributes\n");
++
++	phy_set_drvdata(phy->phy, phy);
++	platform_set_drvdata(pdev, phy);
++	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
++
++	/*
++	 * phy needs to change mode twice after initialization,
++	 * otherwise the controller can not found devices attached
++	 * to the phy.
++	 */
++	cv1800_usb_phy_set_idpad(phy, false);
++	cv1800_usb_phy_set_idpad(phy, true);
++	cv1800_usb_phy_init_mode(dev, phy);
++
++	return PTR_ERR_OR_ZERO(phy_provider);
++}
++
++static void cv1800_usb_phy_remove(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct cv1800_usb_phy *phy = platform_get_drvdata(pdev);
++
++	if (phy->vbus_det_irq > 0)
++		devm_free_irq(dev, phy->vbus_det_irq, phy);
++
++	cancel_delayed_work_sync(&phy->vbus_work);
++}
++
++static const struct of_device_id cv1800_usb_phy_ids[] = {
++	{ .compatible = "sophgo,cv1800-usb-phy" },
++	{ },
++};
++MODULE_DEVICE_TABLE(of, cv1800_usb_phy_ids);
++
++static struct platform_driver cv1800_usb_phy_driver = {
++	.probe = cv1800_usb_phy_probe,
++	.remove_new = cv1800_usb_phy_remove,
++	.driver = {
++		.name = "cv1800-usb-phy",
++		.of_match_table = cv1800_usb_phy_ids,
++	 },
++};
++module_platform_driver(cv1800_usb_phy_driver);
++MODULE_DESCRIPTION("CV1800/SG2000 SoC USB 2.0 PHY driver");
++MODULE_LICENSE("GPL");
+diff --git a/include/soc/sophgo/cv1800-sysctl.h b/include/soc/sophgo/cv1800-sysctl.h
+new file mode 100644
+index 000000000000..b9396d33e240
+--- /dev/null
++++ b/include/soc/sophgo/cv1800-sysctl.h
+@@ -0,0 +1,30 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++/*
++ * Copyright (C) 2023 Inochi Amaoto <inochiama@outlook.com>
++ */
++
++#ifndef CV1800_SYSCTL_H
++#define CV1800_SYSCTL_H
++
++/*
++ * SOPHGO CV1800/SG2000 SoC top system controller registers offsets.
++ */
++
++#define CV1800_CONF_INFO		0x004
++#define CV1800_SYS_CTRL_REG		0x008
++#define CV1800_USB_PHY_CTRL_REG		0x048
++#define CV1800_SDMA_DMA_CHANNEL_REMAP0	0x154
++#define CV1800_SDMA_DMA_CHANNEL_REMAP1	0x158
++#define CV1800_TOP_TIMER_CLK_SEL	0x1a0
++#define CV1800_TOP_WDT_CTRL		0x1a8
++#define CV1800_DDR_AXI_URGENT_OW	0x1b8
++#define CV1800_DDR_AXI_URGENT		0x1bc
++#define CV1800_DDR_AXI_QOS_0		0x1d8
++#define CV1800_DDR_AXI_QOS_1		0x1dc
++#define CV1800_SD_PWRSW_CTRL		0x1f4
++#define CV1800_SD_PWRSW_TIME		0x1f8
++#define CV1800_DDR_AXI_QOS_OW		0x23c
++#define CV1800_SD_CTRL_OPT		0x294
++#define CV1800_SDMA_DMA_INT_MUX		0x298
++
++#endif // CV1800_SYSCTL_H
+-- 
+2.34.1
+

@@ -1,0 +1,94 @@
+From 77e6e4fc3dbe1d5b050ecfc4e68179b51b0da587 Mon Sep 17 00:00:00 2001
+From: Michael Opdenacker <michael.opdenacker@bootlin.com>
+Date: Sun, 21 Apr 2024 07:57:09 +0200
+Subject: [PATCH 6/6] dt-bindings: riscv: add Milk-V Duo S board compatibles
+
+Document the compatible strings for the Milk-V Duo S board[1] which uses
+the SOPHGO SG2000 SoC, compatible with the CV1812H SoC[2].
+
+Link: https://milkv.io/duo-s [1]
+Link: https://en.sophgo.com/product/introduce/cv181xH.html [2]
+
+riscv: dts: sophgo: add initial Milk-V Duo S board support
+
+This adds initial support for the Milk-V Duo S board
+(https://milkv.io/duo-s), enabling the serial port,
+making it possible to boot Linux to the command line.
+
+Link: https://lore.kernel.org/linux-riscv/171266958507.1032617.9460749136730849811.robh@kernel.org/T/#t
+
+Signed-off-by: Michael Opdenacker <michael.opdenacker@bootlin.com>
+
+Upstream-Status: Submitted
+[https://lore.kernel.org/linux-riscv/20240421055710.143617-3-michael.opdenacker@bootlin.com/]
+---
+ .../devicetree/bindings/riscv/sophgo.yaml     |  1 +
+ arch/riscv/boot/dts/sophgo/Makefile           |  1 +
+ .../boot/dts/sophgo/cv1812h-milkv-duo-s.dts   | 33 +++++++++++++++++++
+ 3 files changed, 35 insertions(+)
+ create mode 100644 arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-s.dts
+
+diff --git a/Documentation/devicetree/bindings/riscv/sophgo.yaml b/Documentation/devicetree/bindings/riscv/sophgo.yaml
+index 9bc813dad098..79546aa21021 100644
+--- a/Documentation/devicetree/bindings/riscv/sophgo.yaml
++++ b/Documentation/devicetree/bindings/riscv/sophgo.yaml
+@@ -24,6 +24,7 @@ properties:
+           - const: sophgo,cv1800b
+       - items:
+           - enum:
++              - milkv,duo-s
+               - sophgo,huashan-pi
+           - const: sophgo,cv1812h
+       - items:
+diff --git a/arch/riscv/boot/dts/sophgo/Makefile b/arch/riscv/boot/dts/sophgo/Makefile
+index 57ad82a61ea6..a410f6af03fc 100644
+--- a/arch/riscv/boot/dts/sophgo/Makefile
++++ b/arch/riscv/boot/dts/sophgo/Makefile
+@@ -1,4 +1,5 @@
+ # SPDX-License-Identifier: GPL-2.0
+ dtb-$(CONFIG_ARCH_SOPHGO) += cv1800b-milkv-duo.dtb
+ dtb-$(CONFIG_ARCH_SOPHGO) += cv1812h-huashan-pi.dtb
++dtb-$(CONFIG_ARCH_SOPHGO) += cv1812h-milkv-duo-s.dtb
+ dtb-$(CONFIG_ARCH_SOPHGO) += sg2042-milkv-pioneer.dtb
+diff --git a/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-s.dts b/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-s.dts
+new file mode 100644
+index 000000000000..0f2991d8c8f5
+--- /dev/null
++++ b/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-s.dts
+@@ -0,0 +1,33 @@
++// SPDX-License-Identifier: (GPL-2.0 OR MIT)
++/*
++ * Copyright (C) 2024 Michael Opdenacker <michael.opdenacker@bootlin.com>
++ */
++
++/dts-v1/;
++
++#include "cv1812h.dtsi"
++
++/ {
++	model = "Milk-V Duo S";
++	compatible = "milkv,duo-s", "sophgo,cv1812h";
++
++	aliases {
++		serial0 = &uart0;
++	};
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	memory@80000000 {
++		reg = <0x80000000 0x20000000>;
++	};
++};
++
++&osc {
++	clock-frequency = <25000000>;
++};
++
++&uart0 {
++	status = "okay";
++};
+-- 
+2.34.1
+

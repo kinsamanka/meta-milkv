@@ -1,0 +1,44 @@
+From 97ae016dc833737981cd2da674f7684ee985a3cb Mon Sep 17 00:00:00 2001
+From: GP Orcullo <kinsamanka@gmail.com>
+Date: Sun, 1 Sep 2024 05:17:58 +0000
+Subject: [PATCH 2/2] dt: enable usb
+
+---
+ arch/riscv/boot/dts/sophgo/cv18xx.dtsi | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/arch/riscv/boot/dts/sophgo/cv18xx.dtsi b/arch/riscv/boot/dts/sophgo/cv18xx.dtsi
+index cbd87ce03249..589eb73f1d41 100644
+--- a/arch/riscv/boot/dts/sophgo/cv18xx.dtsi
++++ b/arch/riscv/boot/dts/sophgo/cv18xx.dtsi
+@@ -369,5 +369,27 @@ emac0: ethernet@4070000 {
+ 			interrupt-parent = <&plic>;
+ 			status = "disabled";
+ 		};
++
++		phy: phy@0x03006000 {
++			compatible = "sophgo,cv1800-usb-phy";
++			reg = <0x03006000 0x58>;
++			#phy-cells = <0>;
++			clocks = <&clk CLK_APB_USB>, <&clk CLK_USB_125M>,
++				 <&clk CLK_USB_33K>, <&clk CLK_USB_12M>;
++			clock-names = "phy", "app", "stb", "lpm";
++		};
++
++		usb: usb@04340000 {
++			compatible = "sophgo,cv1800-usb";
++			reg = <0x04340000 0x10000>;
++			g-use-dma;
++			g-rx-fifo-size = <536>;
++			g-np-tx-fifo-size = <32>;
++			g-tx-fifo-size = <768 512 512 384 128 128>;
++			clocks = <&clk CLK_AXI4_USB>;
++			clock-names = "otg";
++			interrupts = <30 IRQ_TYPE_LEVEL_HIGH>;
++			interrupt-parent = <&plic>;
++		};
+ 	};
+ };
+-- 
+2.34.1
+

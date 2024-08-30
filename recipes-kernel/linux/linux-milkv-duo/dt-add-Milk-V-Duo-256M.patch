@@ -1,0 +1,119 @@
+From 8b84a6e370139489f4ba24242c74866e178ff1f5 Mon Sep 17 00:00:00 2001
+From: GP Orcullo <kinsamanka@gmail.com>
+Date: Fri, 30 Aug 2024 03:36:13 +0000
+Subject: [PATCH 1/2] dt: add Milk-V Duo 256M
+
+Upstream-Status: Pending
+---
+ .../dts/sophgo/cv1812h-milkv-duo-256m.dts     | 99 +++++++++++++++++++
+ 1 file changed, 99 insertions(+)
+ create mode 100644 arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-256m.dts
+
+diff --git a/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-256m.dts b/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-256m.dts
+new file mode 100644
+index 000000000000..f6d27ac1b580
+--- /dev/null
++++ b/arch/riscv/boot/dts/sophgo/cv1812h-milkv-duo-256m.dts
+@@ -0,0 +1,99 @@
++// SPDX-License-Identifier: (GPL-2.0 OR MIT)
++/*
++ * Copyright (C) 2024 Michael Opdenacker <michael.opdenacker@bootlin.com>
++ */
++
++/dts-v1/;
++
++#include "cv1812h.dtsi"
++
++/ {
++	model = "Milk-V Duo 256M";
++	compatible = "sophgo,cv1812h";
++
++	aliases {
++		serial0 = &uart0;
++	};
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	reserved-memory {
++		#size-cells = <0x1>;
++		#address-cells = <0x1>;
++		ranges;
++
++		opensbi {
++			compatible = "removed-dma-pool";
++			reg = <0x80000000 0x60000>;
++			no-map;
++		};
++	};
++};
++
++&osc {
++	clock-frequency = <25000000>;
++};
++
++&pinctrl {
++	uart0_cfg: uart0-cfg {
++		uart0-pins {
++			pinmux = <PINMUX(PIN_UART0_TX, 0)>,
++				 <PINMUX(PIN_UART0_RX, 0)>;
++			bias-pull-up;
++			drive-strength-microamp = <10800>;
++			power-source = <3300>;
++		};
++	};
++
++	sdhci0_cfg: sdhci0-cfg {
++		sdhci0-clk-pins {
++			pinmux = <PINMUX(PIN_SD0_CLK, 0)>;
++			bias-pull-up;
++			drive-strength-microamp = <16100>;
++			power-source = <3300>;
++		};
++
++		sdhci0-cmd-pins {
++			pinmux = <PINMUX(PIN_SD0_CMD, 0)>;
++			bias-pull-up;
++			drive-strength-microamp = <10800>;
++			power-source = <3300>;
++		};
++
++		sdhci0-data-pins {
++			pinmux = <PINMUX(PIN_SD0_D0, 0)>,
++				 <PINMUX(PIN_SD0_D1, 0)>,
++				 <PINMUX(PIN_SD0_D2, 0)>,
++				 <PINMUX(PIN_SD0_D3, 0)>;
++			bias-pull-up;
++			drive-strength-microamp = <10800>;
++			power-source = <3300>;
++		};
++
++		sdhci0-cd-pins {
++			pinmux = <PINMUX(PIN_SD0_CD, 0)>;
++			bias-pull-up;
++			drive-strength-microamp = <10800>;
++			power-source = <3300>;
++		};
++	};
++};
++
++&sdhci0 {
++	pinctrl-0 = <&sdhci0_cfg>;
++	pinctrl-names = "default";
++	status = "okay";
++	bus-width = <4>;
++	disable-wp;
++	no-1-8-v;
++	no-mmc;
++	no-sdio;
++};
++
++&uart0 {
++	pinctrl-0 = <&uart0_cfg>;
++	pinctrl-names = "default";
++	status = "okay";
++};
+-- 
+2.34.1
+

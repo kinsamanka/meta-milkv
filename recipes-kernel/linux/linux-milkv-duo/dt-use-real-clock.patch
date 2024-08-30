@@ -1,0 +1,66 @@
+From f7aa2490d5df6a5887666f34caa551fea689be47 Mon Sep 17 00:00:00 2001
+From: GP Orcullo <kinsamanka@gmail.com>
+Date: Thu, 29 Aug 2024 09:32:50 +0000
+Subject: [PATCH 1/1] dt: use real clock
+
+Upstream-Status: Pending
+---
+ arch/riscv/boot/dts/sophgo/cv18xx.dtsi | 28 ++++----------------------
+ 1 file changed, 4 insertions(+), 24 deletions(-)
+
+diff --git a/arch/riscv/boot/dts/sophgo/cv18xx.dtsi b/arch/riscv/boot/dts/sophgo/cv18xx.dtsi
+index d3bbcccce90a..2d6d277c6b3b 100644
+--- a/arch/riscv/boot/dts/sophgo/cv18xx.dtsi
++++ b/arch/riscv/boot/dts/sophgo/cv18xx.dtsi
+@@ -47,27 +47,6 @@ osc: oscillator {
+ 		#clock-cells = <0>;
+ 	};
+ 
+-	sdhci_clk: sdhci-clock {
+-		compatible = "fixed-clock";
+-		clock-frequency = <375000000>;
+-		clock-output-names = "sdhci_clk";
+-		#clock-cells = <0>;
+-	};
+-
+-	clk_csr: clk_csr {
+-		clock-output-names = "eth_csrclk";
+-		clock-frequency = <250000000>;
+-		#clock-cells = <0>;
+-		compatible = "fixed-clock";
+-	};
+-
+-	clk_ptp: clk_ptp {
+-		clock-output-names = "eth_ptpclk";
+-		clock-frequency = <50000000>;
+-		#clock-cells = <0>;
+-		compatible = "fixed-clock";
+-	};
+-
+ 	soc {
+ 		compatible = "simple-bus";
+ 		interrupt-parent = <&plic>;
+@@ -213,8 +192,9 @@ sdhci0: mmc@4310000 {
+ 			compatible = "sophgo,cv1800b-dwcmshc";
+ 			reg = <0x4310000 0x1000>;
+ 			interrupts = <36 IRQ_TYPE_LEVEL_HIGH>;
+-			clocks = <&sdhci_clk>;
+-			clock-names = "core";
++			clocks = <&clk CLK_AXI4_SD0>,
++				 <&clk CLK_SD0>;
++			clock-names = "core", "bus";
+ 			status = "disabled";
+ 		};
+ 
+@@ -257,7 +237,7 @@ emac0: ethernet@4070000 {
+ 			compatible = "sophgo,ethernet";
+ 			reg = <0x4070000 0x10000>;
+ 			clock-names = "stmmaceth", "ptp_ref";
+-			clocks = <&clk_csr>, <&clk_ptp>;
++			clocks = <&clk CLK_AXI4_ETH0>, <&clk CLK_ETH0_500M>;
+ 			tx-fifo-depth = <8192>;
+ 			rx-fifo-depth = <8192>;
+ 			snps,multicast-filter-bins = <0>;
+-- 
+2.34.1
+

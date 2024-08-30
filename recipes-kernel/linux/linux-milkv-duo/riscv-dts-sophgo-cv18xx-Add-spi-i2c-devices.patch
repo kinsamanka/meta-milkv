@@ -1,0 +1,135 @@
+From 558e86a613926b657e088bc7470b77063fb9a8d4 Mon Sep 17 00:00:00 2001
+From: Inochi Amaoto <inochiama@outlook.com>
+Date: Thu, 8 Feb 2024 08:22:11 +0800
+Subject: [PATCH 3/6] riscv: dts: sophgo: cv18xx: Add spi & i2c devices
+
+Add spi & i2c devices for the CV180x, CV181x and SG200x soc.
+
+Signed-off-by: Inochi Amaoto <inochiama@outlook.com>
+
+Upstream-Status: Submitted
+[https://lore.kernel.org/linux-riscv/IA1PR20MB49539A9C5F5CFF6644ED2C2ABB442@IA1PR20MB4953.namprd20.prod.outlook.com/]
+---
+ arch/riscv/boot/dts/sophgo/cv18xx.dtsi | 99 ++++++++++++++++++++++++++
+ 1 file changed, 99 insertions(+)
+
+diff --git a/arch/riscv/boot/dts/sophgo/cv18xx.dtsi b/arch/riscv/boot/dts/sophgo/cv18xx.dtsi
+index d3bbcccce90a..21c29e55fecb 100644
+--- a/arch/riscv/boot/dts/sophgo/cv18xx.dtsi
++++ b/arch/riscv/boot/dts/sophgo/cv18xx.dtsi
+@@ -154,6 +154,61 @@ portd: gpio-controller@0 {
+ 			};
+ 		};
+ 
++		i2c0: i2c@4000000 {
++			compatible = "snps,designware-i2c";
++			reg = <0x04000000 0x10000>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			clocks = <&clk CLK_I2C>, <&clk CLK_APB_I2C0>;
++			clock-names = "ref", "pclk";
++			interrupts = <49 IRQ_TYPE_LEVEL_HIGH>;
++			status = "disabled";
++		};
++
++		i2c1: i2c@4010000 {
++			compatible = "snps,designware-i2c";
++			reg = <0x04010000 0x10000>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			clocks = <&clk CLK_I2C>, <&clk CLK_APB_I2C1>;
++			clock-names = "ref", "pclk";
++			interrupts = <50 IRQ_TYPE_LEVEL_HIGH>;
++			status = "disabled";
++		};
++
++		i2c2: i2c@4020000 {
++			compatible = "snps,designware-i2c";
++			reg = <0x04020000 0x10000>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			clocks = <&clk CLK_I2C>, <&clk CLK_APB_I2C2>;
++			clock-names = "ref", "pclk";
++			interrupts = <51 IRQ_TYPE_LEVEL_HIGH>;
++			status = "disabled";
++		};
++
++		i2c3: i2c@4030000 {
++			compatible = "snps,designware-i2c";
++			reg = <0x04030000 0x10000>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			clocks = <&clk CLK_I2C>, <&clk CLK_APB_I2C3>;
++			clock-names = "ref", "pclk";
++			interrupts = <52 IRQ_TYPE_LEVEL_HIGH>;
++			status = "disabled";
++		};
++
++		i2c4: i2c@4040000 {
++			compatible = "snps,designware-i2c";
++			reg = <0x04040000 0x10000>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			clocks = <&clk CLK_I2C>, <&clk CLK_APB_I2C4>;
++			clock-names = "ref", "pclk";
++			interrupts = <53 IRQ_TYPE_LEVEL_HIGH>;
++			status = "disabled";
++		};
++
+ 		uart0: serial@4140000 {
+ 			compatible = "snps,dw-apb-uart";
+ 			reg = <0x04140000 0x100>;
+@@ -198,6 +253,50 @@ uart3: serial@4170000 {
+ 			status = "disabled";
+ 		};
+ 
++		spi0: spi@4180000 {
++			compatible = "snps,dw-apb-ssi";
++			reg = <0x04180000 0x10000>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			clocks = <&clk CLK_SPI>, <&clk CLK_APB_SPI0>;
++			clock-names = "ssi_clk", "pclk";
++			interrupts = <54 IRQ_TYPE_LEVEL_HIGH>;
++			status = "disabled";
++		};
++
++		spi1: spi@4190000 {
++			compatible = "snps,dw-apb-ssi";
++			reg = <0x04190000 0x10000>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			clocks = <&clk CLK_SPI>, <&clk CLK_APB_SPI1>;
++			clock-names = "ssi_clk", "pclk";
++			interrupts = <55 IRQ_TYPE_LEVEL_HIGH>;
++			status = "disabled";
++		};
++
++		spi2: spi@41a0000 {
++			compatible = "snps,dw-apb-ssi";
++			reg = <0x041a0000 0x10000>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			clocks = <&clk CLK_SPI>, <&clk CLK_APB_SPI2>;
++			clock-names = "ssi_clk", "pclk";
++			interrupts = <56 IRQ_TYPE_LEVEL_HIGH>;
++			status = "disabled";
++		};
++
++		spi3: spi@41b0000 {
++			compatible = "snps,dw-apb-ssi";
++			reg = <0x041b0000 0x10000>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			clocks = <&clk CLK_SPI>, <&clk CLK_APB_SPI3>;
++			clock-names = "ssi_clk", "pclk";
++			interrupts = <57 IRQ_TYPE_LEVEL_HIGH>;
++			status = "disabled";
++		};
++
+ 		uart4: serial@41c0000 {
+ 			compatible = "snps,dw-apb-uart";
+ 			reg = <0x041c0000 0x100>;
+-- 
+2.34.1
+
